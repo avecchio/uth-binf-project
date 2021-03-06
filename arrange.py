@@ -247,7 +247,7 @@ def extract_circular_rnas(file_path, gene_name, chromosome, start, end, is_assoc
                         'end': end,
                         'type': 'circular_rna'
                     })
-                elif is_locale:
+                elif is_locale and (is_associated == False):
                     circular_rnas.append({
                         'identifier': f'CircularRna{counter}',
                         'start': start,
@@ -278,32 +278,51 @@ def extract_enhancers(file_path, chromosome, gene_start, gene_end, is_associated
                     counter = counter + 1
     return enhancers
 
-def extract_insulators(file_path, gene_name, is_associated):
+def extract_insulators(file_path, gene_name, chromosome, gene_start, gene_end, is_associated):
     insulators = []
+    counter = 0
     with open(file_path) as fp:
         lines = fp.readlines()
         for line in lines:
-            if len(line.split("\t")) > 4:
+            if counter > 0 and len(line.split("\t")) > 4:
                 entry = line.split("\t")
                 identifier = entry[0]
                 species = entry[1]
-                chromosome_location = entry[2]
-                five_prime_gene = entry[3]
-                three_prime_gene = entry[4]
-                if (gene_name == five_prime_gene or gene_name == three_prime_gene) or (is_associated == False):
-                    if (len(chromosome_location.split(":")) == 2):
-                        print(entry)
-                        coordinates = chromosome_location.split(":")[1].split("-")
-                        start = coordinates[0]
-                        end = coordinates[1]
-                        insulators.append({
-                            'identifier': identifier,
-                            'start': start,
-                            'end': end,
-                            'type': 'insulator'
-                        })
-                    else:
-                        print(entry)
+                locus = entry[2].split(":")
+
+                five_prime_gene = ''
+                three_prime_gene = ''
+
+                if (len(locus) == 2):
+                    five_prime_gene = entry[3]
+                    three_prime_gene = entry[4]
+                else:
+                    locus = entry[3].split(":")
+                    five_prime_gene = entry[4]
+                    three_prime_gene = entry[5]
+
+                chr = locus[0]
+                coordinates = locus[1].split("-")
+                start = coordinates[0]
+                end = coordinates[1]
+
+                is_locale = (chr == f'chr{chromosome}' and int(gene_start)<int(start) and int(end)<int(gene_end))
+                if (gene_name == five_prime_gene or gene_name == three_prime_gene) and (is_associated):
+                    print(five_prime_gene, three_prime_gene)
+                    insulators.append({
+                        'identifier': identifier,
+                        'start': start,
+                        'end': end,
+                        'type': 'insulator'
+                    })
+                elif is_locale and (is_associated == False):
+                    insulators.append({
+                        'identifier': identifier,
+                        'start': start,
+                        'end': end,
+                        'type': 'insulator'
+                    })
+            counter = counter + 1
     return insulators
 
 def extract_non_coding_rnas(non_coding_rnas):
@@ -365,8 +384,8 @@ def main():
     #enhancer_paths = sync_enhancers()
     #sync_databases('gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)    
     sync_databases('human-circdb.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
-    #sync_databases('insulators-experimental.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
-    #sync_databases('insulators-computational.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
+    sync_databases('insulators-experimental.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
+    sync_databases('insulators-computational.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
     ensemble_cds_metadata = db_cache('ensembl.json', get_ensembl_data, ('FTO'))
 
@@ -385,8 +404,15 @@ def main():
     #features = extract_genecode_features(f'./work/gencode.v37.chr_patch_hapl_scaff.annotation.g', chromosome, gene_start, gene_end)
     #regions = regions + features
 
-    circular_rnas = extract_circular_rnas(f'./work/human-circdb.txt', gene_name, chromosome, gene_start, gene_end, is_associated)
-    regions = regions + circular_rnas
+    #circular_rnas = extract_circular_rnas(f'./work/human-circdb.txt', gene_name, chromosome, gene_start, gene_end, is_associated)
+    #regions = regions + circular_rnas
+
+    computational_insulators = extract_insulators(f'./work/insulators-computational', gene_name, chromosome, gene_start, gene_end, is_associated)
+    regions = regions + computational_insulators
+
+    experimental_insulators = extract_insulators(f'./work/insulators-experimental', gene_name, chromosome, gene_start, gene_end, is_associated)
+    regions = regions + experimental_insulators
+
 
     print(regions)
     print(len(regions))
@@ -409,11 +435,6 @@ def main():
 #    print(non_coding_rnas)
     #regions = regions + extract_non_coding_rnas(non_coding_rnas)
 
-    #computational_insulators = extract_insulators(f'./work/insulators-computational', gene_name)
-    #regions = regions + computational_insulators
-
-    #experimental_insulators = extract_insulators(f'./work/insulators-experimental', gene_name)
-    #regions = regions + experimental_insulators
 
 #    print(regions)
 
