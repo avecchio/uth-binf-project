@@ -279,21 +279,21 @@ def extract_circular_rnas(file_path, gene_name, chromosome, start, end, is_assoc
                 if is_associated and entry[11] == gene_name:
                     circular_rnas.append({
                         'identifier': f'CircularRna{counter}',
-                        'start': start,
-                        'end': end,
+                        'start': int(start),
+                        'end': int(end),
                         'type': 'circular_rna'
                     })
                 elif is_locale and (is_associated == False):
                     circular_rnas.append({
                         'identifier': f'CircularRna{counter}',
-                        'start': start,
-                        'end': end,
+                        'start': int(start),
+                        'end': int(end),
                         'type': 'circular_rna'
                     })
             counter = counter + 1
     return circular_rnas
 
-def extract_enhancers(file_path, chromosome, gene_start, gene_end, is_associated):
+def extract_enhancers(file_path, chromosome, gene_start, gene_end):
     enhancers = []
     counter = 0
     with open(f'./work/{file_path}') as fp:
@@ -306,11 +306,10 @@ def extract_enhancers(file_path, chromosome, gene_start, gene_end, is_associated
                 if is_locale:
                     enhancers.append({
                         'identifier': f'Enhancer{counter}',
-                        'start': start,
-                        'end': end,
+                        'start': int(start),
+                        'end': int(end),
                         'type': 'enhancer'
                     })
-                    print(entry)
                     counter = counter + 1
     return enhancers
 
@@ -347,15 +346,15 @@ def extract_insulators(file_path, gene_name, chromosome, gene_start, gene_end, i
                     print(five_prime_gene, three_prime_gene)
                     insulators.append({
                         'identifier': identifier,
-                        'start': start,
-                        'end': end,
+                        'start': int(start),
+                        'end': int(end),
                         'type': 'insulator'
                     })
                 elif is_locale and (is_associated == False):
                     insulators.append({
                         'identifier': identifier,
-                        'start': start,
-                        'end': end,
+                        'start': int(start),
+                        'end': int(end),
                         'type': 'insulator'
                     })
             counter = counter + 1
@@ -371,8 +370,12 @@ def extract_non_coding_rnas(non_coding_rnas):
         rna_regions.append()
     return rna_regions
 
-def extract_genecode_features(file_path, chromosome, gene_start, gene_end):
+def extract_genecode_features(file_path, ensembl_gene_id, chromosome, gene_start, gene_end):
     features = []
+    exon_counter = 0
+    five_utr = 0
+    three_utr = 0
+    transcript = 0
     with open(file_path) as fp:
         lines = fp.readlines()
         for line in lines:
@@ -382,17 +385,29 @@ def extract_genecode_features(file_path, chromosome, gene_start, gene_end):
                 start = metadata[3]
                 end = metadata[4]
                 biotype = metadata[2]
-                identifier = metadata[8].split(";")[0][3:]
+                information = metadata[8].split(";")
+                identifier = information[0]
+                gene_id = information[2]
                 
                 is_locale = (chr == f'chr{chromosome}' and int(gene_start)<int(start) and int(end)<int(gene_end))
                 is_type = (biotype in ['exon', 'CDS', 'three_prime_UTR', 'five_prime_UTR', 'transcript'])
-                if is_locale and is_type:
+                if is_locale and is_type and (ensembl_gene_id in gene_id):
+                    if (biotype == 'exon'):
+                        exon_counter = exon_counter + 1
+                    elif biotype == 'three_prime_UTR':
+                        three_utr = three_utr + 1
+                    elif biotype == 'five_prime_UTR':
+                        five_utr = five_utr + 1
+                    elif biotype == 'transcript':
+                        transcript = transcript + 1
                     features.append({
                         'identifier': identifier,
-                        'start': start,
-                        'end': end,
+                        'start': int(start),
+                        'end': int(end),
                         'type': biotype
                     })
+
+    print(transcript, exon_counter, five_utr, three_utr)
     return features
 
 def does_overlap_exist(regions):
@@ -425,27 +440,20 @@ def main():
     make_working_directory()
     non_associated_enhancer_paths = sync_enhancers()
     associated_enhancer_paths = sync_gene_enhancers()
-    #sync_databases('gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)    
+    sync_databases('gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)    
     sync_databases('human-circdb.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
     sync_databases('insulators-experimental.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
     sync_databases('insulators-computational.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
     ensemble_cds_metadata = db_cache('ensembl.json', get_ensembl_data, ('FTO'))
 
-    id = ensemble_cds_metadata['id']
+    gene_id = ensemble_cds_metadata['id']
     chromosome = ensemble_cds_metadata['seq_region_name']
     gene_start = ensemble_cds_metadata['start']
     gene_end = ensemble_cds_metadata['end']
 
     is_associated = True
     regions = []
-
-    #for enhancer_path in enhancer_paths:
-    #    print(enhancer_path)
-    #    extract_enhancers(enhancer_path, chromosome, gene_start, gene_end)
-
-    #features = extract_genecode_features(f'./work/gencode.v37.chr_patch_hapl_scaff.annotation.g', chromosome, gene_start, gene_end)
-    #regions = regions + features
 
     #circular_rnas = extract_circular_rnas(f'./work/human-circdb.txt', gene_name, chromosome, gene_start, gene_end, is_associated)
     #regions = regions + circular_rnas
@@ -455,6 +463,22 @@ def main():
 
     #experimental_insulators = extract_insulators(f'./work/insulators-experimental', gene_name, chromosome, gene_start, gene_end, is_associated)
     #regions = regions + experimental_insulators
+
+    #enhancers = []
+    #for enhancer_path in non_associated_enhancer_paths:
+    #    print(enhancer_path)
+    #    enhancers = enhancers + extract_enhancers(enhancer_path, chromosome, gene_start, gene_end)
+    #print(len(enhancers))
+
+
+    #print(chromosome, gene_start, gene_end)
+    features = extract_genecode_features(f'./work/gencode.v37.chr_patch_hapl_scaff.annotation.g', gene_id, chromosome, gene_start, gene_end)
+    #print(len(features))
+#    regions = regions + features
+
+#    for entry in ensemble_cds_metadata['Transcript']:
+#        if 'Translation' in entry:
+#            parent_identifiers.append(entry['Translation']['Parent'])
 
 
     print(regions)
@@ -480,13 +504,6 @@ def main():
 
 
 #    print(regions)
-
-#    parent_identifiers = []
-#    for entry in ensemble_cds_metadata['Transcript']:
-#        if 'Translation' in entry:
-#            parent_identifiers.append(entry['Translation']['Parent'])
-#
-#    
 
 main()
 
