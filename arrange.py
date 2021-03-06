@@ -258,19 +258,33 @@ def extract_non_coding_rnas(non_coding_rnas):
         start = non_coding_rna['start']
         end = non_coding_rna['end']
         biotype = non_coding_rna['biotype']
-        rna_regions.append({
-            'identifier': identifier,
-            'start': start,
-            'end': end,
-            'type': biotype
-        })
+        rna_regions.append()
     return rna_regions
 
-def extract_genecode_features(file_path, chromosome, start, end):
+def extract_genecode_features(file_path, chromosome, gene_start, gene_end):
+    features = []
     with open(file_path) as fp:
         lines = fp.readlines()
         for line in lines:
-            pass
+            metadata = line.split("\t")
+            if len(metadata) > 5:
+                chr = metadata[0]
+                start = metadata[3]
+                end = metadata[4]
+                biotype = metadata[2]
+                identifier = metadata[8].split(";")[0][3:]
+                
+                is_locale = (chr == f'chr{chromosome}' and int(gene_start)<int(start) and int(end)<int(gene_end))
+                is_type = (biotype in ['exon', 'CDS', 'three_prime_UTR', 'five_prime_UTR', 'transcript'])
+                if is_locale and is_type:
+                    features.append({
+                        'identifier': identifier,
+                        'start': start,
+                        'end': end,
+                        'type': biotype
+                    })
+    return features
+
 
 def extract_enhancers(path_to_beds, chromosome, start, end):
     pass
@@ -282,6 +296,7 @@ def main():
     sync_enhancers()
     sync_databases('gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)    
     sync_databases('human-circdb.txt', 'http://www.circbase.org/download/hscore/hscores_human_gencode27.tar.gz', True)
+    # Commented as it does not exist..
     #sync_databases('insulators-experimental.txt', 'https://insulatordb.uthsc.edu/download/allexp.txt.gz', True)
     sync_databases('insulators-computational.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
@@ -294,13 +309,16 @@ def main():
 
     regions = []
 
-    non_coding_rnas = db_cache('rna_central.json', query_rnacentral, (chromosome, gene_start, gene_end))
-    regions = regions + extract_non_coding_rnas(non_coding_rnas)
+    features = extract_genecode_features(f'./work/gencode.v37.chr_patch_hapl_scaff.annotation.g', chromosome, gene_start, gene_end)
+    regions = regions + features
 
-    insulators = extract_insulators(f'./work/insulators-computational', gene_name)
-    regions = regions + insulators
+    #non_coding_rnas = db_cache('rna_central.json', query_rnacentral, (chromosome, gene_start, gene_end))
+    #regions = regions + extract_non_coding_rnas(non_coding_rnas)
 
-    print(regions)
+    #insulators = extract_insulators(f'./work/insulators-computational', gene_name)
+    #regions = regions + insulators
+
+    #print(regions)
 
 #    parent_identifiers = []
 #    for entry in ensemble_cds_metadata['Transcript']:
