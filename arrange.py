@@ -232,6 +232,16 @@ def extract_circular_rnas(file_path, identifiers, start, end):
                 if identifier.split(".")[0] in identifiers:
                     print(line)
 
+def extract_insulators(file_path, gene_name):
+    with open(file_path) as fp:
+        lines = fp.readlines()
+        for line in lines:
+            if len(line.split("\t")) == 5:
+                identifier, species, chromosome_location, five_prime_gene, three_prime_gene = line.split("\t")
+                if gene_name == five_prime_gene or gene_name == three_prime_gene:
+                    print(chromosome_location)
+
+
 def extract_genecode_features(file_path, chromosome, start, end):
     with open(file_path) as fp:
         lines = fp.readlines()
@@ -240,12 +250,6 @@ def extract_genecode_features(file_path, chromosome, start, end):
 
 def extract_enhancers(path_to_beds, chromosome, start, end):
     pass
-
-def extract_insulators(file_path, chromosome, start, end):
-    with open(file_path) as fp:
-        lines = fp.readlines()
-        for line in lines:
-            pass
 
 def main():
     gene_name = 'FTO'
@@ -264,28 +268,28 @@ def main():
     gene_start = ensemble_cds_metadata['start']
     gene_end = ensemble_cds_metadata['end']
 
-    #print(id)
+    non_coding_rnas = db_cache('rna_central.json', query_rnacentral, (chromosome, gene_start, gene_end))
 
-    parent_identifiers = []
-    for entry in ensemble_cds_metadata['Transcript']:
-        if 'Translation' in entry:
-            parent_identifiers.append(entry['Translation']['Parent'])
+    regions = []
 
-    extract_circular_rnas(f'./work/human-circdb', parent_identifiers, gene_start, gene_end)
+    extract_insulators(f'./work/insulators-computational', gene_name)
 
-    #rna_central_rnas = db_cache('rna_central.json', query_rnacentral, (chromosome, gene_start, gene_end))
-    #print(len(rna_central_rnas))
+#    for non_coding_rna in non_coding_rnas:
+#        identifier = non_coding_rna['ID']
+#        start = non_coding_rna['start']
+#        end = non_coding_rna['end']
+#        regions.append({
+#            'identifier': identifier,
+#            'start': start,
+#            'end': end
+#        })
 
-#query_clinvar(gene_name, '', True)
-#ncbi_snps = query_dbsnp(gene_name, True)
-#print(ncbi_snps)
-#for ncbi_snp in ncbi_snps:
-#    pass
-
-#get_clinvar_entry('1599393422')
-
-#get_dbsnp_coords(268)
-#query_ncbi('FTO')
+#    parent_identifiers = []
+#    for entry in ensemble_cds_metadata['Transcript']:
+#        if 'Translation' in entry:
+#            parent_identifiers.append(entry['Translation']['Parent'])
+#
+#    extract_circular_rnas(f'./work/human-circdb', parent_identifiers, gene_start, gene_end)
 
 main()
 
