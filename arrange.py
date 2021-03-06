@@ -172,6 +172,42 @@ def get_ensembl_data(params):
     )
     return results
 
+def sync_gene_enhancers():
+    enhancer_paths = []
+    cell_type_enhancers = [
+        'A375','A549','AML_blast','Astrocyte','BJ','Bronchia_epithelial',
+        'Caco-2','Calu-3','CD14+','CD19+','CD20+','CD34+',
+        'CD36+','CD4+','CD8+','Cerebellum','CUTLL1','DOHH2',
+        'ECC-1','ESC_neuron','Esophagus','Fetal_heart','Fetal_kidney','Fetal_muscle_leg',
+        'Fetal_placenta','Fetal_small_intestine','Fetal_spinal_cord','Fetal_stomach','Fetal_thymus','FT246',
+        'FT33','GM10847','GM12878','GM12891','GM12892','GM18505',
+        'GM18526','GM18951','GM19099','GM19193','GM19238','GM19239',
+        'GM19240','H1','H9','HCC1954','HCT116','HEK293T',
+        'HEK293','Hela-S3','Hela','HepG2','HFF','HL-60',
+        'hMADS-3','HMEC','hNCC','HSMM','HT1080','HT29',
+        'HUVEC','IMR90','Jurkat','K562','Kasumi-1','KB',
+        'Keratinocyte','Left_ventricle','LHCN-M2','Liver','LNCaP-abl','LNCaP',
+        'Lung','MCF-7','MCF10A','ME-1','Melanocyte','melanoma',
+        'Mesendoderm','MS1','Myotube','Namalwa','NB4','NHDF',
+        'NHEK','NHLF','NKC','OCI-Ly7','Osteoblast','Ovary',
+        'PANC-1','Pancreas','Pancreatic_islet','PBMC','PC3','PrEC',
+        'SGBS_adipocyte','SK-N-SH','SK-N-SH_RA','Skeletal_muscle','Small_intestine','Sperm',
+        'Spleen','T47D','T98G','th1','Thymus','U2OS',
+        'VCaP','ZR75-30'
+    ]
+
+    for cell_type in cell_type_enhancers:
+        url = f'http://www.enhanceratlas.org/data/AllEPs/hs/{cell_type}_EP.txt'
+        try:
+            cell_type_enhancer_name = f'{cell_type}.txt'
+            sync_databases(cell_type_enhancer_name, url, False)
+            enhancer_paths.append(cell_type_enhancer_name)
+        except:
+            print('unable to download: ' + cell_type)
+
+    return enhancer_paths
+
+
 def sync_enhancers():
     enhancer_paths = []
     cell_type_enhancers = [
@@ -365,14 +401,20 @@ def does_overlap_exist(regions):
     coordinates = []
     for region in regions:
         coordinates.append({
-            region['start']
+            'identifier': region['identifier'],
+            'coordinate': int(region['start'])
         })
         coordinates.append({
-            region['end']
+            'identifier': region['identifier'],
+            'coordinate': int(region['end'])
         })
     coordinates.sort()
     for coordinate in coordinates:
-        pass
+        if coordinate['identifier'] == stack[-1]['identifier']:
+            pass
+            # remove
+        else:
+            pass
     print(stack)
     return len(stack) == 0
 
@@ -381,7 +423,8 @@ def main():
     gene_name = 'FTO'
 
     make_working_directory()
-    #enhancer_paths = sync_enhancers()
+    non_associated_enhancer_paths = sync_enhancers()
+    associated_enhancer_paths = sync_gene_enhancers()
     #sync_databases('gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)    
     sync_databases('human-circdb.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
     sync_databases('insulators-experimental.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
@@ -407,11 +450,11 @@ def main():
     #circular_rnas = extract_circular_rnas(f'./work/human-circdb.txt', gene_name, chromosome, gene_start, gene_end, is_associated)
     #regions = regions + circular_rnas
 
-    computational_insulators = extract_insulators(f'./work/insulators-computational', gene_name, chromosome, gene_start, gene_end, is_associated)
-    regions = regions + computational_insulators
+    #computational_insulators = extract_insulators(f'./work/insulators-computational', gene_name, chromosome, gene_start, gene_end, is_associated)
+    #regions = regions + computational_insulators
 
-    experimental_insulators = extract_insulators(f'./work/insulators-experimental', gene_name, chromosome, gene_start, gene_end, is_associated)
-    regions = regions + experimental_insulators
+    #experimental_insulators = extract_insulators(f'./work/insulators-experimental', gene_name, chromosome, gene_start, gene_end, is_associated)
+    #regions = regions + experimental_insulators
 
 
     print(regions)
