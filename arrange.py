@@ -173,6 +173,7 @@ def get_ensembl_data(params):
     return results
 
 def sync_enhancers():
+    enhancer_paths = []
     cell_type_enhancers = [
     '786-O','A375','A549','Adipocyte','AML_blast',
     'Astrocyte','BE2C','BJ','Bronchia_epithelial','B_cell_blood',
@@ -219,9 +220,14 @@ def sync_enhancers():
     for cell_type in cell_type_enhancers:
         url = f'http://www.enhanceratlas.org/data/download/enhancer/hs/{cell_type}.bed'
         try:
-            sync_databases(f'{cell_type}.bed', url, False)
+            cell_type_enhancer_name = f'{cell_type}.bed'
+            sync_databases(cell_type_enhancer_name, url, False)
+            enhancer_paths.append(cell_type_enhancer_name)
         except:
             print('unable to download: ' + cell_type)
+
+    return enhancer_paths
+
 
 def extract_circular_rnas(file_path, identifiers, start, end):
     with open(file_path) as fp:
@@ -231,6 +237,27 @@ def extract_circular_rnas(file_path, identifiers, start, end):
                 identifier, start, end, tf, = line.split("\t")
                 if identifier.split(".")[0] in identifiers:
                     print(line)
+
+def extract_enhancers(file_path, chromosome, gene_start, gene_end):
+    enhancers = []
+    counter = 0
+    with open(f'./work/{file_path}') as fp:
+        lines = fp.readlines()
+        for line in lines:
+            entry = line.replace("\n","").split("\t")
+            if (len(entry) == 4):
+                chr, start, end, tf = entry
+                is_locale = (chr == f'chr{chromosome}' and int(gene_start)<int(start) and int(end)<int(gene_end))
+                if is_locale:
+                    enhancers.append({
+                        'identifier': f'Enhancer{counter}',
+                        'start': start,
+                        'end': end,
+                        'type': 'enhancer'
+                    })
+                    print(entry)
+                    counter = counter + 1
+    return enhancers
 
 def extract_insulators(file_path, gene_name):
     insulators = []
@@ -286,14 +313,11 @@ def extract_genecode_features(file_path, chromosome, gene_start, gene_end):
     return features
 
 
-def extract_enhancers(path_to_beds, chromosome, start, end):
-    pass
-
 def main():
     gene_name = 'FTO'
 
     make_working_directory()
-    sync_enhancers()
+    enhancer_paths = sync_enhancers()
     sync_databases('gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)    
     sync_databases('human-circdb.txt', 'http://www.circbase.org/download/hscore/hscores_human_gencode27.tar.gz', True)
     # Commented as it does not exist..
@@ -309,8 +333,13 @@ def main():
 
     regions = []
 
-    features = extract_genecode_features(f'./work/gencode.v37.chr_patch_hapl_scaff.annotation.g', chromosome, gene_start, gene_end)
-    regions = regions + features
+    for enhancer_path in enhancer_paths:
+        print(enhancer_path)
+        extract_enhancers(enhancer_path, chromosome, gene_start, gene_end)
+        
+
+    #features = extract_genecode_features(f'./work/gencode.v37.chr_patch_hapl_scaff.annotation.g', chromosome, gene_start, gene_end)
+    #regions = regions + features
 
     #non_coding_rnas = db_cache('rna_central.json', query_rnacentral, (chromosome, gene_start, gene_end))
     #regions = regions + extract_non_coding_rnas(non_coding_rnas)
