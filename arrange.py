@@ -233,14 +233,38 @@ def extract_circular_rnas(file_path, identifiers, start, end):
                     print(line)
 
 def extract_insulators(file_path, gene_name):
+    insulators = []
     with open(file_path) as fp:
         lines = fp.readlines()
         for line in lines:
             if len(line.split("\t")) == 5:
                 identifier, species, chromosome_location, five_prime_gene, three_prime_gene = line.split("\t")
                 if gene_name == five_prime_gene or gene_name == three_prime_gene:
-                    print(chromosome_location)
+                    coordinates = chromosome_location.split(":")[1].split("-")
+                    start = coordinates[0]
+                    end = coordinates[1]
+                    insulators.append({
+                        'identifier': identifier,
+                        'start': start,
+                        'end': end,
+                        'type': 'insulator'
+                    })
+    return insulators
 
+def extract_non_coding_rnas(non_coding_rnas):
+    rna_regions = []
+    for non_coding_rna in non_coding_rnas:
+        identifier = non_coding_rna['ID']
+        start = non_coding_rna['start']
+        end = non_coding_rna['end']
+        biotype = non_coding_rna['biotype']
+        rna_regions.append({
+            'identifier': identifier,
+            'start': start,
+            'end': end,
+            'type': biotype
+        })
+    return rna_regions
 
 def extract_genecode_features(file_path, chromosome, start, end):
     with open(file_path) as fp:
@@ -268,21 +292,15 @@ def main():
     gene_start = ensemble_cds_metadata['start']
     gene_end = ensemble_cds_metadata['end']
 
-    non_coding_rnas = db_cache('rna_central.json', query_rnacentral, (chromosome, gene_start, gene_end))
-
     regions = []
 
-    extract_insulators(f'./work/insulators-computational', gene_name)
+    non_coding_rnas = db_cache('rna_central.json', query_rnacentral, (chromosome, gene_start, gene_end))
+    regions = regions + extract_non_coding_rnas(non_coding_rnas)
 
-#    for non_coding_rna in non_coding_rnas:
-#        identifier = non_coding_rna['ID']
-#        start = non_coding_rna['start']
-#        end = non_coding_rna['end']
-#        regions.append({
-#            'identifier': identifier,
-#            'start': start,
-#            'end': end
-#        })
+    insulators = extract_insulators(f'./work/insulators-computational', gene_name)
+    regions = regions + insulators
+
+    print(regions)
 
 #    parent_identifiers = []
 #    for entry in ensemble_cds_metadata['Transcript']:
