@@ -389,9 +389,8 @@ def extract_genecode_features(file_path, ensembl_gene_id, chromosome, gene_start
                 identifier = information[0]
                 gene_id = information[2]
                 
-                is_locale = (chr == f'chr{chromosome}' and int(gene_start)<int(start) and int(end)<int(gene_end))
                 is_type = (biotype in ['exon', 'CDS', 'three_prime_UTR', 'five_prime_UTR', 'transcript'])
-                if is_locale and is_type and (ensembl_gene_id in gene_id):
+                if is_type and (ensembl_gene_id in gene_id):
                     if (biotype == 'exon'):
                         exon_counter = exon_counter + 1
                     elif biotype == 'three_prime_UTR':
