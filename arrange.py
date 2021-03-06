@@ -153,11 +153,6 @@ def query_rnacentral(params):
     content = extract_content(res, 'json')
     return content
 
-def download_circ_rna_db(gene_name):
-    pass
-
-def query_circ_rna_db(gene_name):
-    pass
 
 def extract_sequence(dna, start, end):
     pass
@@ -228,6 +223,30 @@ def sync_enhancers():
         except:
             print('unable to download: ' + cell_type)
 
+def extract_circular_rnas(file_path, identifiers, start, end):
+    with open(file_path) as fp:
+        lines = fp.readlines()
+        for line in lines:
+            if len(line.split("\t")) == 4:
+                identifier, start, end, tf, = line.split("\t")
+                if identifier.split(".")[0] in identifiers:
+                    print(line)
+
+def extract_genecode_features(file_path, chromosome, start, end):
+    with open(file_path) as fp:
+        lines = fp.readlines()
+        for line in lines:
+            pass
+
+def extract_enhancers(path_to_beds, chromosome, start, end):
+    pass
+
+def extract_insulators(file_path, chromosome, start, end):
+    with open(file_path) as fp:
+        lines = fp.readlines()
+        for line in lines:
+            pass
+
 def main():
     gene_name = 'FTO'
 
@@ -238,11 +257,21 @@ def main():
     #sync_databases('insulators-experimental.txt', 'https://insulatordb.uthsc.edu/download/allexp.txt.gz', True)
     sync_databases('insulators-computational.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
-    #ensemble_cds_metadata = db_cache('ensembl.json', get_ensembl_data, ('FTO'))
+    ensemble_cds_metadata = db_cache('ensembl.json', get_ensembl_data, ('FTO'))
 
-    #chromosome = ensemble_cds_metadata['seq_region_name']
-    #gene_start = ensemble_cds_metadata['start']
-    #gene_end = ensemble_cds_metadata['end']
+    id = ensemble_cds_metadata['id']
+    chromosome = ensemble_cds_metadata['seq_region_name']
+    gene_start = ensemble_cds_metadata['start']
+    gene_end = ensemble_cds_metadata['end']
+
+    #print(id)
+
+    parent_identifiers = []
+    for entry in ensemble_cds_metadata['Transcript']:
+        if 'Translation' in entry:
+            parent_identifiers.append(entry['Translation']['Parent'])
+
+    extract_circular_rnas(f'./work/human-circdb', parent_identifiers, gene_start, gene_end)
 
     #rna_central_rnas = db_cache('rna_central.json', query_rnacentral, (chromosome, gene_start, gene_end))
     #print(len(rna_central_rnas))
