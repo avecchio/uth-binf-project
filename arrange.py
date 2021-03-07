@@ -99,9 +99,32 @@ def generate_rna_structure(rna):
 def extract_rna_features(structural_path):
     os.system(f'')
 
-def query_gwas(gene_name):
+def is_gwas_snp_associated(snpid, condition):
+    study_url = f'https://www.ebi.ac.uk/gwas/rest/api/singleNucleotidePolymorphisms/{snpid}/studies'
+    response = requests.get(study_url)
+    content = extract_content(response, 'json')
+    studies = content['_embedded']['studies']
+    for study in studies:
+        trait = study['diseaseTrait']['trait']
+        if condition in trait:
+            return True
+    return False
+
+def query_gwas(gene_name, condition):
+    associated_snps = []
     query_url = f'https://www.ebi.ac.uk/gwas/rest/api/singleNucleotidePolymorphisms/search/findByGene?geneName={gene_name}'
     response = requests.get(query_url)
+    content = extract_content(response, 'json')
+    snps = content['_embedded']['singleNucleotidePolymorphisms']
+    for snp in snps:
+        snpid = snp['rsId']
+        is_associated = is_gwas_snp_associated(snpid, condition)
+        if is_associated:
+            associated_snps.append({
+                'identifier': f'CircularRna{counter}',
+                'coordinate': int(start),
+            })
+    return associated_snps
 
 def query_ncbi(query_url, restype):
     response = requests.get(query_url)
@@ -141,9 +164,6 @@ def get_dbsnp_coords(id):
     content = extract_content(res)
     snapshot_data = content['primary_snapshot_data']
     print(snapshot_data)
-
-def query_gwas(gene_name, condition):
-    pass
 
 def query_rnacentral(params):
     chromosome, gene_start, gene_end = params    
@@ -435,14 +455,16 @@ def main():
     sync_databases('insulators-experimental.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
     sync_databases('insulators-computational.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
-    ensemble_cds_metadata = db_cache('ensembl.json', get_ensembl_data, [gene_name])
+    gwas_snps = query_gwas(gene_name, 'Growth Retardation') #
+    print(gwas_snps)
+    #ensemble_cds_metadata = db_cache('ensembl.json', get_ensembl_data, [gene_name])
 
-    gene_id = ensemble_cds_metadata['id']
-    chromosome = ensemble_cds_metadata['seq_region_name']
-    gene_start = ensemble_cds_metadata['start']
-    gene_end = ensemble_cds_metadata['end']
+    #gene_id = ensemble_cds_metadata['id']
+    #chromosome = ensemble_cds_metadata['seq_region_name']
+    #gene_start = ensemble_cds_metadata['start']
+    #gene_end = ensemble_cds_metadata['end']
 
-    is_associated = True
+    #is_associated = True
     regions = []
 
     #circular_rnas = extract_circular_rnas(f'./work/human-circdb.txt', gene_name)
@@ -454,11 +476,11 @@ def main():
     #experimental_insulators = extract_insulators(f'./work/insulators-experimental', gene_name)
     #regions = regions + experimental_insulators
 
-    enhancers = []
-    for enhancer_path in associated_enhancer_paths:
-        print(enhancer_path)
-        enhancers = enhancers + extract_enhancers(enhancer_path, gene_id)
-    regions = regions + enhancers
+    #enhancers = []
+    #for enhancer_path in associated_enhancer_paths:
+    #    print(enhancer_path)
+    #    enhancers = enhancers + extract_enhancers(enhancer_path, gene_id)
+    #regions = regions + enhancers
 
     #features = extract_genecode_features(f'./work/gencode.v37.chr_patch_hapl_scaff.annotation.g', gene_id)
     #print(len(features))
@@ -469,8 +491,8 @@ def main():
 #            parent_identifiers.append(entry['Translation']['Parent'])
 
 
-    print(regions)
-    print(len(regions))
+    #print(regions)
+    #print(len(regions))
 
     #non_coding_rnas = db_cache('rna_central.json', query_rnacentral, (chromosome, gene_start, gene_end))
 
