@@ -66,15 +66,15 @@ def arrange(variants, regions):
     #    items.append(variant)
     #    if variant['region'] not in frequencies:
     #        frequencies[variant['region']] = 0
-    for region in regions:
-        items.append({
-            'name': region['identifier'] + '_start',
-            'position': region['start'],
-        })
-        items.append({
-            'name': region['identifier'] + '_end',
-            'position': region['end'],
-        })
+    #for region in regions:
+    #    items.append({
+    #        'name': region['identifier'] + '_start',
+    #        'position': region['start'],
+    #    })
+    #    items.append({
+    #        'name': region['identifier'] + '_end',
+    #        'position': region['end'],
+    #    })
     
     items = sorted(items, key=lambda item: item['position'])
 
@@ -428,7 +428,7 @@ def extract_insulators(file_path, gene_name):
                     five_prime_gene = entry[4]
                     three_prime_gene = entry[5]
 
-                chr, start, end = get_coordinates(entry)
+                chr, start, end = get_coordinates(coord_str)
                 if (gene_name == five_prime_gene or gene_name == three_prime_gene):
                     insulators.append({
                         'identifier': identifier,
@@ -555,14 +555,14 @@ def main():
     promoters = extract_promoters('./work/Hs_EPDnew.bed', gene_name)
     regions = regions + promoters
 
-    circular_rnas = extract_circular_rnas(f'./work/human-circdb.txt', gene_name)
-    regions = regions + circular_rnas
+    #circular_rnas = extract_circular_rnas(f'./work/human-circdb.txt', gene_name)
+    #regions = regions + circular_rnas
 
-    #computational_insulators = extract_insulators(f'./work/insulators-computational', gene_name)
-    #regions = regions + computational_insulators
+    computational_insulators = extract_insulators(f'./work/insulators-computational', gene_name)
+    regions = regions + computational_insulators
 
-    #experimental_insulators = extract_insulators(f'./work/insulators-experimental', gene_name)
-    #regions = regions + experimental_insulators
+    experimental_insulators = extract_insulators(f'./work/insulators-experimental', gene_name)
+    regions = regions + experimental_insulators
 
     #snps = query_dbsnp(gene_name, False)
     #print(len(snps))
