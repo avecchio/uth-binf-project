@@ -137,7 +137,7 @@ def query_dbsnp(gene_name, is_test):
     query_url = f'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=snp&term={gene_name}&retmax={retmax}&retmode=json'
     return query_ncbi(query_url, 'json')
 
-def query_clinvar(gene_name, condition, is_test):
+def query_clinvar(gene_name, is_test):
     retmax = 20 if is_test == True else 100000 
     query_url = f'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=clinvar&term={gene_name}&retmax={retmax}&retmode=json'
     return query_ncbi(query_url, 'json')
@@ -147,16 +147,33 @@ def query_dbvar(gene_name, condition):
     query_url = f'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=dbvar&term=%28{gene_name}%5BGene%20Name%5D%29%&retmax={retmax}&retmode=json'
     return query_ncbi(query_url)
 
-def get_clinvar_entry(id):
+def get_clinvar_entry(id, condition):
     query_url = f'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=clinvar&rettype=vcv&is_variationid&id={id}&from_esearch=true&retmode=json'
-    print(query_url)
     res = requests.get(query_url)
     content = extract_content(res, 'xml')
-    print(content)
-    record = content['ClinVarResult-Set']['VariationArchive']['InterpretedRecord']
-    print(record['ClinicalAssertionList'])
+    variants = []
 
-#    name = record['TraitMappingList']['TraitMapping']['MedGen']['@Name']
+    try:
+        record = content['ClinVarResult-Set']['VariationArchive']['InterpretedRecord']
+        trait_name = record['TraitMappingList']['TraitMapping']['MedGen']['@Name']
+        locations = record['SimpleAllele']['Location']['SequenceLocation']
+
+        for location in locations:
+            if condition in trait_name:
+                variants.append({
+                    'start': location['@start'],
+                    'stop': location['@stop'],
+                    'reference_allele': location['@referenceAlleleVCF'],
+                    'alternate_allele': location['@alternateAlleleVCF']
+                })
+            else:
+                print(condition)
+                print(trait_name)
+                print('--------------')
+    except:
+        print('error')
+    return variants
+
 
 def get_dbsnp_coords(id):
     query_url = f'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=snp&id={id}&rettype=json&retmode=text'
@@ -166,6 +183,18 @@ def get_dbsnp_coords(id):
     print(snapshot_data)
 
 def query_rnacentral(params):
+
+    sql_query = f'''
+    SELECT accession, feature_start, feature_end, feature_name, species,
+    database, external_id, anticodon, sr.chromosome, function, gene, gene_synonym, locus_tag,
+    product, r.rna_type, ac, r.taxid, version, acc.description, r.description,
+    region_name, strand, region_start, region_stop, exon_count
+    from rnacen.rnc_accessions acc
+    LEFT JOIN rnacen.xref x on (acc.accession = x.ac)
+    left join rnacen.rnc_rna_precomputed r on (x.upi = r.upi)
+    left join rnacen.rnc_sequence_regions sr on (r.id = sr.urs_taxid)
+    where gene='FTO'
+    '''
     chromosome, gene_start, gene_end = params    
     query_url = f'https://rnacentral.org/api/v1/overlap/region/homo_sapiens/{chromosome}:{gene_start}-{gene_end}'
     res = requests.get(query_url, verify=False)
@@ -446,7 +475,7 @@ def generate_structure(sequence):
 
 def main():
     gene_name = 'FTO'
-
+    condition = 'Growth retardation'
     make_working_directory()
     #non_associated_enhancer_paths = sync_enhancers()
     associated_enhancer_paths = sync_gene_enhancers()
@@ -455,8 +484,22 @@ def main():
     sync_databases('insulators-experimental.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
     sync_databases('insulators-computational.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
-    gwas_snps = query_gwas(gene_name, 'Growth Retardation') #
-    print(gwas_snps)
+
+    #snps = query_dbsnp(gene_name, False)
+    #print(len(snps))
+    clinical_variants = []
+    clinvars = query_clinvar(gene_name, False)
+    for var in clinvars:
+        vvars = get_clinvar_entry(var, condition)
+        clinical_variants = clinical_variants + vvars
+    print(len(clinical_variants))
+#    print(clinvars)
+    #def query_dbvar(gene_name, condition):
+
+    
+
+    #gwas_snps = query_gwas(gene_name, 'Growth Retardation') #
+    #print(gwas_snps)
     #ensemble_cds_metadata = db_cache('ensembl.json', get_ensembl_data, [gene_name])
 
     #gene_id = ensemble_cds_metadata['id']
