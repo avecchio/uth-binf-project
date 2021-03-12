@@ -8,6 +8,10 @@ import requests
 import shutil
 import gzip
 
+import shutil
+import urllib.request as request
+from contextlib import closing
+        
 import os.path
 from os import path
 
@@ -45,33 +49,51 @@ def db_cache(file_name, callback, callback_params):
             json.dump(data, outfile)
         return data
 
-def locus(item):
-    return item['locus']
-
 def arrange(variants, regions):
-    frequencies = {}
-    frequencies['unknown'] = 0
+    #frequencies = {}
+    #frequencies['unknown'] = 0
 
     items = []
-    for variant in variants:
-        items.append(variant)
-        if variant['region'] not in frequencies:
-            frequencies[variant['region']] = 0
+    #for variant in variants:
+    #    items.append({
+    #        'name': 'variant',
+    #        'position': variant['start'],
+    #    })
+    #    items.append({
+    #        'name': 'variant',
+    #        'position': variant['stop'],
+    #    })
+    #    items.append(variant)
+    #    if variant['region'] not in frequencies:
+    #        frequencies[variant['region']] = 0
     for region in regions:
-        items.append(region)
-    items.sort(key=locus)
-
-    region = 'unknown'
+        items.append({
+            'name': region['identifier'] + '_start',
+            'position': region['start'],
+        })
+        items.append({
+            'name': region['identifier'] + '_end',
+            'position': region['end'],
+        })
     
+    items = sorted(items, key=lambda item: item['position'])
+
+    #    items.append(region)
+    #items.sort(key=locus)
+
+    #region = 'unknown'
+    
+    #for item in items:
+    #    if item['type'] == 'variant':
+    #        frequencies[region] = frequencies[region] + 1
+    #    elif item['type'] == 'region':
+    #        if item['position'] == 'start':
+    #            region = item['name']
+    #        else:
+    #            region = 'unknown'
+    #return frequencies
     for item in items:
-        if item['type'] == 'variant':
-            frequencies[region] = frequencies[region] + 1
-        elif item['type'] == 'region':
-            if item['position'] == 'start':
-                region = item['name']
-            else:
-                region = 'unknown'
-    return frequencies
+        print(item)
 
 def construct_rna_variants(start, rna, variants):
     rnas = [rna]
@@ -110,7 +132,8 @@ def is_gwas_snp_associated(snpid, condition):
             return True
     return False
 
-def query_gwas(gene_name, condition):
+def query_gwas(params):
+    gene_name, condition = params
     associated_snps = []
     query_url = f'https://www.ebi.ac.uk/gwas/rest/api/singleNucleotidePolymorphisms/search/findByGene?geneName={gene_name}'
     response = requests.get(query_url)
@@ -121,7 +144,7 @@ def query_gwas(gene_name, condition):
         is_associated = is_gwas_snp_associated(snpid, condition)
         if is_associated:
             associated_snps.append({
-                'identifier': f'CircularRna{counter}',
+                'identifier': f'gwas_var{counter}',
                 'coordinate': int(start),
             })
     return associated_snps
@@ -161,8 +184,8 @@ def get_clinvar_entry(id, condition):
         for location in locations:
             if condition in trait_name:
                 variants.append({
-                    'start': location['@start'],
-                    'stop': location['@stop'],
+                    'start': int(location['@start']),
+                    'stop': int(location['@stop']),
                     'reference_allele': location['@referenceAlleleVCF'],
                     'alternate_allele': location['@alternateAlleleVCF']
                 })
@@ -357,7 +380,31 @@ def extract_enhancers(file_path, gene_identifier):
             counter = counter + 1
     return list(enhancers.values())
 
-def extract_insulators(file_path, gene_name, ):
+def extract_promoters(file_path, gene_name):
+    promoters = []
+    counter = 0
+    with open(file_path) as fp:
+        lines = fp.readlines()
+        for line in lines:
+            entry = line.split(" ")
+            if len(entry) == 8:
+                gene = entry[3]
+                start = entry[1]
+                end = entry[2]
+                strand = entry[5]
+                if gene_name in gene:
+                    promoters.append({
+                        'identifier': f'promoter{counter}',
+                        'start': int(start),
+                        'end': int(end),
+                        'type': 'promoter'
+                    })
+            else:
+                print('uh')
+            counter = counter + 1
+    return promoters
+
+def extract_insulators(file_path, gene_name):
     known_insulators = []
     insulators = []
     counter = 0
@@ -473,33 +520,55 @@ def mutate_sequence(sequence, pos, mutation):
 def generate_structure(sequence):
     pass
 
+def get_ncbi_clinical_variants(params):
+    gene_name, condition = params
+    variants = []
+    clinical_variants = query_clinvar(gene_name, False)
+    for clinical_variant in clinical_variants:
+        variant_coordinates = get_clinvar_entry(clinical_variant, condition)
+        variants = variants + variant_coordinates
+    return variants
+
 def main():
     gene_name = 'FTO'
     condition = 'Growth retardation'
     make_working_directory()
     #non_associated_enhancer_paths = sync_enhancers()
     associated_enhancer_paths = sync_gene_enhancers()
+    sync_databases('Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
+   
     sync_databases('gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)    
     sync_databases('human-circdb.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
     sync_databases('insulators-experimental.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
     sync_databases('insulators-computational.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
+    #db_cache
+    variants = []
+    gwas_snps = db_cache('gwas_variants.json', query_gwas, [gene_name, condition])
+    variants = variants + gwas_snps
+
+    ncbi_clinical_variants = db_cache('clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
+    variants = variants + ncbi_clinical_variants
+
+
+    regions = []
+    promoters = extract_promoters('./work/Hs_EPDnew.bed', gene_name)
+    regions = regions + promoters
+
+    circular_rnas = extract_circular_rnas(f'./work/human-circdb.txt', gene_name)
+    regions = regions + circular_rnas
+
+    #computational_insulators = extract_insulators(f'./work/insulators-computational', gene_name)
+    #regions = regions + computational_insulators
+
+    #experimental_insulators = extract_insulators(f'./work/insulators-experimental', gene_name)
+    #regions = regions + experimental_insulators
 
     #snps = query_dbsnp(gene_name, False)
     #print(len(snps))
-    clinical_variants = []
-    clinvars = query_clinvar(gene_name, False)
-    for var in clinvars:
-        vvars = get_clinvar_entry(var, condition)
-        clinical_variants = clinical_variants + vvars
-    print(len(clinical_variants))
-#    print(clinvars)
-    #def query_dbvar(gene_name, condition):
 
-    
+    #def query_dbvar(gene_name, condition):    
 
-    #gwas_snps = query_gwas(gene_name, 'Growth Retardation') #
-    #print(gwas_snps)
     #ensemble_cds_metadata = db_cache('ensembl.json', get_ensembl_data, [gene_name])
 
     #gene_id = ensemble_cds_metadata['id']
@@ -508,16 +577,11 @@ def main():
     #gene_end = ensemble_cds_metadata['end']
 
     #is_associated = True
-    regions = []
 
-    #circular_rnas = extract_circular_rnas(f'./work/human-circdb.txt', gene_name)
-    #regions = regions + circular_rnas
+    arrange(variants, regions)
 
-    #computational_insulators = extract_insulators(f'./work/insulators-computational', gene_name)
-    #regions = regions + computational_insulators
+    
 
-    #experimental_insulators = extract_insulators(f'./work/insulators-experimental', gene_name)
-    #regions = regions + experimental_insulators
 
     #enhancers = []
     #for enhancer_path in associated_enhancer_paths:
