@@ -54,27 +54,24 @@ def arrange(variants, regions):
     #frequencies['unknown'] = 0
 
     items = []
-    #for variant in variants:
-    #    items.append({
-    #        'name': 'variant',
-    #        'position': variant['start'],
-    #    })
-    #    items.append({
-    #        'name': 'variant',
-    #        'position': variant['stop'],
-    #    })
-    #    items.append(variant)
-    #    if variant['region'] not in frequencies:
-    #        frequencies[variant['region']] = 0
-    #for region in regions:
-    #    items.append({
-    #        'name': region['identifier'] + '_start',
-    #        'position': region['start'],
-    #    })
-    #    items.append({
-    #        'name': region['identifier'] + '_end',
-    #        'position': region['end'],
-    #    })
+    for variant in variants:
+        items.append({
+            'name': 'variant',
+            'position': variant['start'],
+        })
+        items.append({
+            'name': 'variant',
+            'position': variant['stop'],
+        })
+    for region in regions:
+        items.append({
+            'name': region['identifier'] + '_start',
+            'position': region['start'],
+        })
+        items.append({
+            'name': region['identifier'] + '_end',
+            'position': region['end'],
+        })
     
     items = sorted(items, key=lambda item: item['position'])
 
@@ -274,64 +271,6 @@ def sync_gene_enhancers():
 
     return enhancer_paths
 
-
-def sync_enhancers():
-    enhancer_paths = []
-    cell_type_enhancers = [
-    '786-O','A375','A549','Adipocyte','AML_blast',
-    'Astrocyte','BE2C','BJ','Bronchia_epithelial','B_cell_blood',
-    'C4-2','Caco-2','Calu-3','CCRF-CEM','CD133+',
-    'CD14+','CD14+_monocyte','CD19+','CD20+','CD34+',
-    'CD36+','CD4+','CD8+','Cerebellum','CMK',
-    'CNCC','Colo320','Colo829','CUTLL1','CyT49',
-    'Denditric_cell','DLD1','DOHH2','ECC-1','Endometrial_stromal_cell',
-    'endometrioid_adenocarcinoma','ESC','ESC_neuron','ESC_NPC','Esophagus',
-    'EWS502','Fetal_brain','Fetal_heart','Fetal_kidney','Fetal_lung',
-    'Fetal_muscle_leg','Fetal_placenta','Fetal_small_intestine','Fetal_spinal_cord','Fetal_stomach',
-    'Fetal_thymus','Fibroblast_foreskin','Foreskin_keratinocyte','FT246','FT33',
-    'GC_B_cell','Gliobla','GM10847','GM12878','GM12891',
-    'GM12892','GM18486','GM18505','GM18507','GM18508',
-    'GM18516','GM18522','GM18526','GM18951','GM19099',
-    'GM19141','GM19193','GM19238','GM19239','GM19240',
-    'H1','H128','H2171','H54','H9',
-    'HACAT','HCASMC','HCC1954','HCT116','Heart',
-    'HEK293','HEK293T','HeLa-S3','Hela','Hepatocyte',
-    'HepG2','HFF','HL-60','hMADS-3','HMEC',
-    'hNCC','HSC','HSMM','HSMMtube','HT1080',
-    'HT29','HuCCT1','HUES64','HUVEC','IMR90',
-    'iPSC','Jurkat','K562','Kasumi-1','KATO3',
-    'KB','KELLY','Keratinocyte','Kidney','Kidney_cortex',
-    'Left_ventricle','LHCN-M2','Liver','LNCaP-1F5','LNCaP-abl',
-    'LNCaP','LoVo','LP-1','LS174T','Lung',
-    'LY1','Macrophage','MCF-7','MCF10A','MDA-MB-231',
-    'ME-1','Melanocyte','melanoma','Mesendoderm','MM1S',
-    'Monocyte','MS1','MSC_BM','Myotube','Namalwa',
-    'NB4','NCCIT','NGP','NH-A','NHBE',
-    'NHDF','NHEK','NHLF','NKC','NT2-D1',
-    'OCI-LY1','OCI-Ly7','Osteobl','Osteoblast','Ovary',
-    'P493-6','PANC-1','Pancreas','Pancreatic_islet','PBMC',
-    'PC3','Plasma_cell_myeloma','PrEC','Raji','Ramos',
-    'REH','Retina','RPE','RPTEC','RS4-11',
-    'SEM','SGBS_adipocyte','SH-SY5Y','SK-MEL-5','SK-N-MC',
-    'SK-N-SH','SK-N-SH_RA','Skeletal_muscle','SkMC','Small_intestine',
-    'Sperm','Spleen','T47D-MTVL','T47D','T98G',
-    'TC-797','Th1','Th2','Thymus','Treg_cell',
-    'Trophoblast','U2OS','U87','Urothelial_cell','VCaP',
-    'ZR75-1','ZR75-30'
-    ]
-
-    for cell_type in cell_type_enhancers:
-        url = f'http://www.enhanceratlas.org/data/download/enhancer/hs/{cell_type}.bed'
-        try:
-            cell_type_enhancer_name = f'{cell_type}.bed'
-            sync_databases(cell_type_enhancer_name, url, False)
-            enhancer_paths.append(cell_type_enhancer_name)
-        except:
-            print('unable to download: ' + cell_type)
-
-    return enhancer_paths
-
-
 def extract_circular_rnas(file_path, gene_name):
     circular_rnas = []
     with open(file_path) as fp:
@@ -485,31 +424,7 @@ def extract_genecode_features(file_path, ensembl_gene_id):
                         'type': biotype
                     })
 
-    print(transcript, exon_counter, five_utr, three_utr)
     return features
-
-def does_overlap_exist(regions):
-    stack = []
-
-    coordinates = []
-    for region in regions:
-        coordinates.append({
-            'identifier': region['identifier'],
-            'coordinate': int(region['start'])
-        })
-        coordinates.append({
-            'identifier': region['identifier'],
-            'coordinate': int(region['end'])
-        })
-    coordinates.sort()
-    for coordinate in coordinates:
-        if coordinate['identifier'] == stack[-1]['identifier']:
-            pass
-            # remove
-        else:
-            pass
-    print(stack)
-    return len(stack) == 0
 
 def extract_sequence(dna, start, end):
     pass
@@ -529,11 +444,26 @@ def get_ncbi_clinical_variants(params):
         variants = variants + variant_coordinates
     return variants
 
+
+def dedup_regions(regions):
+    print(len(regions))
+    unique_regions = []
+    unique_region_coordinates = {}
+    for region in regions:
+        start = region['start']
+        end = region['end']
+        coordinate = f'{start}-{end}'
+        if coordinate not in unique_region_coordinates:
+            unique_region_coordinates[coordinate] = 0
+            unique_regions.append(region)
+    print(unique_region_coordinates)
+    print(len(unique_regions))
+    return unique_regions
+
 def main():
     gene_name = 'FTO'
     condition = 'Growth retardation'
     make_working_directory()
-    #non_associated_enhancer_paths = sync_enhancers()
     associated_enhancer_paths = sync_gene_enhancers()
     sync_databases('Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
    
@@ -542,7 +472,10 @@ def main():
     sync_databases('insulators-experimental.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
     sync_databases('insulators-computational.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
-    #db_cache
+    ensemble_cds_metadata = db_cache('ensembl.json', get_ensembl_data, [gene_name])
+
+    gene_id = ensemble_cds_metadata['id']
+
     variants = []
     gwas_snps = db_cache('gwas_variants.json', query_gwas, [gene_name, condition])
     variants = variants + gwas_snps
@@ -550,13 +483,16 @@ def main():
     ncbi_clinical_variants = db_cache('clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
     variants = variants + ncbi_clinical_variants
 
-
     regions = []
+
+    features = extract_genecode_features(f'./work/gencode.v37.chr_patch_hapl_scaff.annotation.g', gene_id)
+    regions = regions + features
+
     promoters = extract_promoters('./work/Hs_EPDnew.bed', gene_name)
     regions = regions + promoters
 
-    #circular_rnas = extract_circular_rnas(f'./work/human-circdb.txt', gene_name)
-    #regions = regions + circular_rnas
+    circular_rnas = extract_circular_rnas(f'./work/human-circdb.txt', gene_name)
+    regions = regions + dedup_regions(circular_rnas)
 
     computational_insulators = extract_insulators(f'./work/insulators-computational', gene_name)
     regions = regions + computational_insulators
@@ -564,34 +500,13 @@ def main():
     experimental_insulators = extract_insulators(f'./work/insulators-experimental', gene_name)
     regions = regions + experimental_insulators
 
-    #snps = query_dbsnp(gene_name, False)
-    #print(len(snps))
 
-    #def query_dbvar(gene_name, condition):    
-
-    #ensemble_cds_metadata = db_cache('ensembl.json', get_ensembl_data, [gene_name])
-
-    #gene_id = ensemble_cds_metadata['id']
-    #chromosome = ensemble_cds_metadata['seq_region_name']
-    #gene_start = ensemble_cds_metadata['start']
-    #gene_end = ensemble_cds_metadata['end']
-
-    #is_associated = True
+    enhancers = []
+    for enhancer_path in associated_enhancer_paths:
+        enhancers = enhancers + extract_enhancers(enhancer_path, gene_id)
+    regions = regions + dedup_regions(enhancers)
 
     arrange(variants, regions)
-
-    
-
-
-    #enhancers = []
-    #for enhancer_path in associated_enhancer_paths:
-    #    print(enhancer_path)
-    #    enhancers = enhancers + extract_enhancers(enhancer_path, gene_id)
-    #regions = regions + enhancers
-
-    #features = extract_genecode_features(f'./work/gencode.v37.chr_patch_hapl_scaff.annotation.g', gene_id)
-    #print(len(features))
-#    regions = regions + features
 
 #    for entry in ensemble_cds_metadata['Transcript']:
 #        if 'Translation' in entry:
