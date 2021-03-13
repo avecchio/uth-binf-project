@@ -1,2 +1,7 @@
 xmltodict 0.12.0
 ensemble-rest 0.3.3
+wget 3.2
+pyBigWig 0.3.18
+psycopg2 2.8.6
+CrossMap 0.5.2
+requests 0.2.22
