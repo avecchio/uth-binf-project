@@ -7,6 +7,8 @@ import ensembl_rest
 import requests
 import shutil
 import gzip
+import psycopg2
+import datetime
 
 import shutil
 import urllib.request as request
@@ -38,6 +40,10 @@ def sync_databases(file_name, url, unzip):
             return unzipped_filename
         return local_filepath
 
+def myconverter(o):
+    if isinstance(o, datetime.datetime):
+        return o.__str__()
+
 def db_cache(file_name, callback, callback_params):
     if path.exists(file_name):
         with open(file_name) as json_file:
@@ -46,7 +52,8 @@ def db_cache(file_name, callback, callback_params):
     else:
         data = callback(callback_params)
         with open(file_name, 'w') as outfile:
-            json.dump(data, outfile)
+            json_str = json.dumps(data, default = myconverter)
+            outfile.write(json_str)
         return data
 
 def arrange(variants, regions):
@@ -67,10 +74,12 @@ def arrange(variants, regions):
         items.append({
             'name': region['identifier'] + '_start',
             'position': region['start'],
+            'type': region['type']
         })
         items.append({
             'name': region['identifier'] + '_end',
             'position': region['end'],
+            'type': region['type']
         })
     
     items = sorted(items, key=lambda item: item['position'])
@@ -203,23 +212,42 @@ def get_dbsnp_coords(id):
     print(snapshot_data)
 
 def query_rnacentral(params):
+    gene_name = params[0]
+    """ query data from the vendors table """
+    conn = None
 
+    #--accession, feature_start, feature_end, feature_name, species,
+    #--external_id, anticodon, sr.chromosome, gene, gene_synonym, locus_tag,
+    #--product, r.rna_type, ac, r.taxid, acc.description, r.description,
+    #--region_name, strand, region_start, region_stop, exon_count
+    
     sql_query = f'''
-    SELECT accession, feature_start, feature_end, feature_name, species,
-    database, external_id, anticodon, sr.chromosome, function, gene, gene_synonym, locus_tag,
-    product, r.rna_type, ac, r.taxid, version, acc.description, r.description,
-    region_name, strand, region_start, region_stop, exon_count
-    from rnacen.rnc_accessions acc
-    LEFT JOIN rnacen.xref x on (acc.accession = x.ac)
-    left join rnacen.rnc_rna_precomputed r on (x.upi = r.upi)
-    left join rnacen.rnc_sequence_regions sr on (r.id = sr.urs_taxid)
-    where gene='FTO'
+    SELECT * from rnacen.rnc_accessions acc
+    where gene like '%{gene_name}%'
     '''
-    chromosome, gene_start, gene_end = params    
-    query_url = f'https://rnacentral.org/api/v1/overlap/region/homo_sapiens/{chromosome}:{gene_start}-{gene_end}'
-    res = requests.get(query_url, verify=False)
-    content = extract_content(res, 'json')
-    return content
+    t_host = "hh-pgsql-public.ebi.ac.uk"
+    t_port = "5432"
+    t_dbname = "pfmegrnargs"
+    t_user = "reader"
+    t_pw = "NWDMCE5xdipIjRrp"
+    try:
+        conn = psycopg2.connect(host=t_host, port=t_port, dbname=t_dbname, user=t_user, password=t_pw)
+        cur = conn.cursor()
+        cur.execute(sql_query)
+        row = cur.fetchone()
+
+        results = []
+        while row is not None:
+            results.append(row)
+            row = cur.fetchone()
+        cur.close()
+        return results
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+        return []
+    finally:
+        if conn is not None:
+            conn.close()
 
 def is_locale(gene_start, gene_end, start, end, strand):
     if strand == "+":
@@ -281,12 +309,15 @@ def extract_circular_rnas(file_path, gene_name):
             if (len(entry) == 13):
                 start = entry[1]
                 end = entry[2]
+                strand = entry[3]
+                identifier = entry[4]
                 if entry[11] == gene_name:
                     circular_rnas.append({
-                        'identifier': f'CircularRna{counter}',
+                        'identifier': identifier,
                         'start': int(start),
                         'end': int(end),
-                        'type': 'circular_rna'
+                        'type': 'circular_rna',
+                        'strand': strand
                     })
             counter = counter + 1
     return circular_rnas
@@ -337,9 +368,10 @@ def extract_promoters(file_path, gene_name):
                         'start': int(start),
                         'end': int(end),
                         'type': 'promoter'
+                        'strand': strand
                     })
             else:
-                print('uh')
+                print('not a proper entry for file: ' + file_path)
             counter = counter + 1
     return promoters
 
@@ -368,7 +400,9 @@ def extract_insulators(file_path, gene_name):
                     three_prime_gene = entry[5]
 
                 chr, start, end = get_coordinates(coord_str)
-                if (gene_name == five_prime_gene or gene_name == three_prime_gene):
+
+                flanking = (gene_name in five_prime_gene or gene_name in three_prime_gene)
+                if flanking and (species == 'Human'):
                     insulators.append({
                         'identifier': identifier,
                         'start': int(start),
@@ -444,6 +478,9 @@ def get_ncbi_clinical_variants(params):
         variants = variants + variant_coordinates
     return variants
 
+def gff_writer(regions):
+    for region in regions:
+        pass
 
 def dedup_regions(regions):
     print(len(regions))
@@ -462,6 +499,8 @@ def dedup_regions(regions):
 
 def main():
     gene_name = 'FTO'
+    #rnas = db_cache('rna_central.json', query_rnacentral, [gene_name])
+
     condition = 'Growth retardation'
     make_working_directory()
     associated_enhancer_paths = sync_gene_enhancers()
@@ -478,43 +517,34 @@ def main():
 
     variants = []
     gwas_snps = db_cache('gwas_variants.json', query_gwas, [gene_name, condition])
-    variants = variants + gwas_snps
+    #variants = variants + gwas_snps
 
     ncbi_clinical_variants = db_cache('clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
-    variants = variants + ncbi_clinical_variants
+    #variants = variants + ncbi_clinical_variants
 
     regions = []
 
     features = extract_genecode_features(f'./work/gencode.v37.chr_patch_hapl_scaff.annotation.g', gene_id)
-    regions = regions + features
+    #regions = regions + features
 
     promoters = extract_promoters('./work/Hs_EPDnew.bed', gene_name)
     regions = regions + promoters
 
     circular_rnas = extract_circular_rnas(f'./work/human-circdb.txt', gene_name)
-    regions = regions + dedup_regions(circular_rnas)
+    #regions = regions + dedup_regions(circular_rnas)
 
     computational_insulators = extract_insulators(f'./work/insulators-computational', gene_name)
-    regions = regions + computational_insulators
+    #regions = regions + dedup_regions(computational_insulators)
 
     experimental_insulators = extract_insulators(f'./work/insulators-experimental', gene_name)
-    regions = regions + experimental_insulators
-
+    #regions = regions + dedup_regions(experimental_insulators)
 
     enhancers = []
     for enhancer_path in associated_enhancer_paths:
         enhancers = enhancers + extract_enhancers(enhancer_path, gene_id)
-    regions = regions + dedup_regions(enhancers)
+    #regions = regions + dedup_regions(enhancers)
 
     arrange(variants, regions)
-
-#    for entry in ensemble_cds_metadata['Transcript']:
-#        if 'Translation' in entry:
-#            parent_identifiers.append(entry['Translation']['Parent'])
-
-
-    #print(regions)
-    #print(len(regions))
 
     #non_coding_rnas = db_cache('rna_central.json', query_rnacentral, (chromosome, gene_start, gene_end))
 
@@ -533,15 +563,6 @@ def main():
     #    if rna['feature_type'] not in features:
     #        features[rna['feature_type']] = 0
     #    features[rna['feature_type']] = features[rna['feature_type']] + 1
-
-    #print('features')
-    #print(features)
-    #print('biotypes')
-    #print(biotypes)
-    #regions = regions + extract_non_coding_rnas(non_coding_rnas)
-
-
-#    print(regions)
 
 main()
 
