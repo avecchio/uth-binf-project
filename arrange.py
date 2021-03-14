@@ -692,10 +692,10 @@ def main():
     working_directory = 'work'
     gene_name = 'FTO'
 
-    rnas = db_cache('rna_central.json', query_rnacentral, [gene_name])
+    make_working_directory(working_directory)
+    rnas = db_cache(f'./{working_directory}/rna_central.json', query_rnacentral, [gene_name])
 
     condition = 'Growth retardation'
-    make_working_directory(working_directory)
     associated_enhancer_paths = sync_gene_enhancers(working_directory)
     sync_databases(working_directory, 'Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
    
@@ -704,32 +704,32 @@ def main():
     sync_databases(working_directory, 'insulators-experimental.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
     sync_databases(working_directory, 'insulators-computational.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
-    ensemble_cds_metadata = db_cache('ensembl.json', get_ensembl_data, [gene_name])
+    ensemble_cds_metadata = db_cache(f'./{working_directory}/ensembl.json', get_ensembl_data, [gene_name])
 
     gene_id = ensemble_cds_metadata['id']
 
     variants = []
-    gwas_snps = db_cache('gwas_variants.json', query_gwas, [gene_name, condition])
+    gwas_snps = db_cache(f'./{working_directory}/gwas_variants.json', query_gwas, [gene_name, condition])
     #variants = variants + gwas_snps
 
-    ncbi_clinical_variants = db_cache('clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
+    ncbi_clinical_variants = db_cache(f'./{working_directory}/clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
     #variants = variants + ncbi_clinical_variants
 
-    regions = []
+    #regions = []
 
-    features = extract_genecode_features(f'./work/gencode.v37.chr_patch_hapl_scaff.annotation.g', gene_id)
+    features = extract_genecode_features(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.g', gene_id)
     #regions = regions + features
 
-    promoters = extract_promoters('./work/Hs_EPDnew.bed', gene_name)
-    regions = regions + promoters
+    promoters = extract_promoters(f'./{working_directory}/Hs_EPDnew.bed', gene_name)
+    #regions = regions + promoters
 
-    circular_rnas = extract_circular_rnas(f'./work/human-circdb.txt', gene_name)
+    circular_rnas = extract_circular_rnas(f'./{working_directory}/human-circdb.txt', gene_name)
     #regions = regions + dedup_regions(circular_rnas)
 
-    computational_insulators = extract_insulators(f'./work/insulators-computational', gene_name)
+    computational_insulators = extract_insulators(f'./{working_directory}/insulators-computational', gene_name)
     #regions = regions + dedup_regions(computational_insulators)
 
-    experimental_insulators = extract_insulators(f'./work/insulators-experimental', gene_name)
+    experimental_insulators = extract_insulators(f'./{working_directory}/insulators-experimental', gene_name)
     #regions = regions + dedup_regions(experimental_insulators)
 
     enhancers = []
