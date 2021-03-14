@@ -1,34 +1,32 @@
 import requests
 import json
 import xmltodict
-#import ssl
-#import urllib.request
 import ensembl_rest
 import requests
 import shutil
 import gzip
 import psycopg2
 import datetime
+#import matplotlib.pyplot as plt
 
 import shutil
-import urllib.request as request
-from contextlib import closing
-        
+import urllib.request as reques        
 import os.path
-from os import path
-
 import wget
 
-def make_working_directory():
+from contextlib import closing
+from os import path
+
+def make_working_directory(directory):
     try:
-        os.makedirs('work')
+        os.makedirs(directory)
     except OSError as e:
         pass
 
-def sync_databases(file_name, url, unzip):
-    if path.exists(f'./work/{file_name}') == False:
+def sync_databases(working_directory, file_name, url, unzip):
+    if path.exists(f'./{working_directory}/{file_name}') == False:
         local_filename = file_name 
-        local_filepath = f'./work/{local_filename}'
+        local_filepath = f'./{working_directory}/{local_filename}'
 
         wget.download(url, local_filepath)
 
@@ -56,31 +54,72 @@ def db_cache(file_name, callback, callback_params):
             outfile.write(json_str)
         return data
 
+def plot_variant_frequencies():
+    pass
+    #fig = plt.figure()
+    #ax = fig.add_axes([0,0,1,1])
+    #langs = ['C', 'C++', 'Java', 'Python', 'PHP']
+    #students = [23,17,35,29,12]
+    #ax.bar(langs,students)
+    #plt.show()
+
+def plot_overlapping_variants():
+    pass
+
+    # An "interface" to matplotlib.axes.Axes.hist() method
+    #n, bins, patches = plt.hist(x=d, bins='auto', color='#0504aa',
+    #                            alpha=0.7, rwidth=0.85)
+    #plt.grid(axis='y', alpha=0.75)
+    #plt.xlabel('Value')
+    #plt.ylabel('Frequency')
+    #plt.title('My Very Own Histogram')
+    #plt.text(23, 45, r'$\mu=15, b=3$')
+    #maxfreq = n.max()
+    # Set a clean upper y-axis limit.
+    #plt.ylim(ymax=np.ceil(maxfreq / 10) * 10 if maxfreq % 10 else maxfreq + 10)
+
 def arrange(variants, regions):
     #frequencies = {}
     #frequencies['unknown'] = 0
 
     items = []
-    for variant in variants:
-        items.append({
-            'name': 'variant',
-            'position': variant['start'],
-        })
-        items.append({
-            'name': 'variant',
-            'position': variant['stop'],
-        })
+    region_counters = {}
+    variant_counters = {}
+
     for region in regions:
-        items.append({
-            'name': region['identifier'] + '_start',
-            'position': region['start'],
-            'type': region['type']
-        })
-        items.append({
-            'name': region['identifier'] + '_end',
-            'position': region['end'],
-            'type': region['type']
-        })
+        region_counters[region['identifier']] = {
+            'region': region,
+            'variants': []
+        }
+
+    for variant in variants:
+        unique_regions = []
+        for region in regions:
+            in_region = False
+            if in_region:
+                region['type']
+
+
+#    for variant in variants:
+#        items.append({
+#            'name': 'variant',
+#            'position': variant['start'],
+#        })
+#        items.append({
+#            'name': 'variant',
+#            'position': variant['stop'],
+#        })
+#    for region in regions:
+#        items.append({
+#            'name': region['identifier'] + '_start',
+#            'position': region['start'],
+#            'type': region['type']
+#        })
+#        items.append({
+#            'name': region['identifier'] + '_end',
+#            'position': region['end'],
+#            'type': region['type']
+#        })
     
     items = sorted(items, key=lambda item: item['position'])
 
@@ -211,6 +250,7 @@ def get_dbsnp_coords(id):
     snapshot_data = content['primary_snapshot_data']
     print(snapshot_data)
 
+
 def query_rnacentral(params):
     gene_name = params[0]
     """ query data from the vendors table """
@@ -221,15 +261,12 @@ def query_rnacentral(params):
     #--product, r.rna_type, ac, r.taxid, acc.description, r.description,
     #--region_name, strand, region_start, region_stop, exon_count
     
-    sql_query = f'''
-    
-    SELECT
-    --acc.id AS acc_id,
+    columns = '''
+    acc.id AS acc_id,
     acc.accession AS acc_accession,
     acc.anticodon AS acc_anticodon,
     acc.classification AS acc_classification,
     acc.common_name AS acc_common_name,
-    --acc.database AS acc_database,
     acc.db_xref AS acc_acc_db_xref,
     acc.description AS acc_description,
     acc.division AS acc_division,
@@ -241,7 +278,6 @@ def query_rnacentral(params):
     acc.function AS acc_function,
     acc.gene AS acc_gene,
     acc.gene_synonym AS acc_gene_synonym,
-    --acc.genome_position AS acc_genome_position,
     acc.inference AS acc_inference,
     acc.is_composite AS acc_is_composite,
     acc.keywords AS acc_keywords,
@@ -261,9 +297,7 @@ def query_rnacentral(params):
     acc.species AS acc_species,
     acc.standard_name AS acc_standard_name,
     x.id AS xref_id,
-    --x.accession AS xref_accession,
     x.created AS xref_created,
-    --x.db AS xref_db,
     x.last AS xref_last,
     x.upi AS xref_upi,
     x.deleted AS xref_deleted,
@@ -296,14 +330,19 @@ def query_rnacentral(params):
     sr.region_stop AS sr_region_stop,
     sr.strand AS sr_strand,
     sr.was_mapped AS sr_was_mapped
+    '''
+    sql_query = f'''
+    
+    SELECT
+    {columns}
     from rnacen.rnc_accessions acc
-
     LEFT JOIN rnacen.xref x on (acc.accession = x.ac)
     left join rnacen.rnc_rna_precomputed r on (x.upi = r.upi)
     left join rnacen.rnc_sequence_regions sr on (r.id = sr.urs_taxid)    
 
     where gene like '%{gene_name}%'
     '''
+
     t_host = "hh-pgsql-public.ebi.ac.uk"
     t_port = "5432"
     t_dbname = "pfmegrnargs"
@@ -317,10 +356,80 @@ def query_rnacentral(params):
 
         results = []
         while row is not None:
-            results.append(row)
+            results.append(list(row))
             row = cur.fetchone()
         cur.close()
-        return results
+        result_dictionaries = []
+        return [ 
+            {"acc_id,": x[0],
+            "acc_accession,": x[1],
+            "acc_anticodon,": x[2],
+            "acc_classification,": x[3],
+            "acc_common_name,": x[4],
+            "acc_acc_db_xref,": x[5],
+            "acc_description,": x[6],
+            "acc_division,": x[7],
+            "acc_experiment,": x[8],
+            "acc_external_id,": x[9],
+            "acc_feature_end,": x[10],
+            "acc_feature_name,": x[11],
+            "acc_feature_start,": x[12],
+            "acc_function,": x[13],
+            "acc_gene,": x[14],
+            "acc_gene_synonym,": x[15],
+            "acc_inference,": x[16],
+            "acc_is_composite,": x[17],
+            "acc_keywords,": x[18],
+            "acc_locus_tag,": x[19],
+            "acc_mol_type,": x[20],
+            "acc_ncrna_class,": x[21],
+            "acc_non_coding_id,": x[22],
+            "acc_note,": x[23],
+            "acc_old_locus_tag,": x[24],
+            "acc_acc_optional_id,": x[25],
+            "acc_ordinal,": x[26],
+            "acc_organelle,": x[27],
+            "acc_parent_ac,": x[28],
+            "acc_product,": x[29],
+            "acc_project,": x[30],
+            "acc_seq_version,": x[31],
+            "acc_species,": x[32],
+            "acc_standard_name,": x[33],
+            "xref_id,": x[34],
+            "xref_created,": x[35],
+            "xref_last,": x[36],
+            "xref_upi,": x[37],
+            "xref_deleted,": x[38],
+            "xref_taxid,": x[39],
+            "xref_timestamp,": x[40],
+            "xref_userstamp,": x[41],
+            "xref_version,": x[42],
+            "xref_version_i,": x[43],
+            "r_id,": x[44],
+            "r_upi,": x[45],
+            "r_databases,": x[46],
+            "r_description,": x[47],
+            "r_has_coordinates,": x[48],
+            "r_is_active,": x[49],
+            "r_last_release,": x[50],
+            "r_rfam_problems,": x[51],
+            "r_rna_type,": x[52],
+            "r_short_description,": x[53],
+            "r_taxid,": x[54],
+            "r_update_date,": x[55],
+            "sr_id,": x[56],
+            "sr_assembly,": x[57],
+            "sr_urs_taxid,": x[58],
+            "sr_chromosome,": x[59],
+            "sr_exon_count,": x[60],
+            "sr_identity,": x[61],
+            "sr_providing_databases,": x[62],
+            "sr_region_name,": x[63],
+            "sr_region_start,": x[64],
+            "sr_region_stop,": x[65],
+            "sr_strand,": x[66],
+            "sr_was_mapped": x[67]}
+        for x in results]
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
         return []
@@ -343,7 +452,7 @@ def get_ensembl_data(params):
     )
     return results
 
-def sync_gene_enhancers():
+def sync_gene_enhancers(working_directory):
     enhancer_paths = []
     cell_type_enhancers = [
         'A375','A549','AML_blast','Astrocyte','BJ','Bronchia_epithelial',
@@ -371,7 +480,7 @@ def sync_gene_enhancers():
         url = f'http://www.enhanceratlas.org/data/AllEPs/hs/{cell_type}_EP.txt'
         try:
             cell_type_enhancer_name = f'{cell_type}.txt'
-            sync_databases(cell_type_enhancer_name, url, False)
+            sync_databases(working_directory, cell_type_enhancer_name, url, False)
             enhancer_paths.append(cell_type_enhancer_name)
         except:
             print('unable to download: ' + cell_type)
@@ -406,10 +515,10 @@ def get_coordinates(coord_str):
     start, end = coordinates.split("-")
     return chr, start, end
 
-def extract_enhancers(file_path, gene_identifier):
+def extract_enhancers(working_directory, file_path, gene_identifier):
     enhancers = {}
     counter = 0
-    with open(f'./work/{file_path}') as fp:
+    with open(f'./{working_directory}/{file_path}') as fp:
         lines = fp.readlines()
         for line in lines:
             entry = line.replace("\n","").split("\t")
@@ -446,7 +555,7 @@ def extract_promoters(file_path, gene_name):
                         'identifier': f'promoter{counter}',
                         'start': int(start),
                         'end': int(end),
-                        'type': 'promoter'
+                        'type': 'promoter',
                         'strand': strand
                     })
             else:
@@ -580,18 +689,20 @@ def convert_coordinates(file_path):
     os.system('CrossMap.py bed hg18ToHg19.over.chain.gz test.hg18.bed')
 
 def main():
+    working_directory = 'work'
     gene_name = 'FTO'
-    #rnas = db_cache('rna_central.json', query_rnacentral, [gene_name])
+
+    rnas = db_cache('rna_central.json', query_rnacentral, [gene_name])
 
     condition = 'Growth retardation'
-    make_working_directory()
-    associated_enhancer_paths = sync_gene_enhancers()
-    sync_databases('Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
+    make_working_directory(working_directory)
+    associated_enhancer_paths = sync_gene_enhancers(working_directory)
+    sync_databases(working_directory, 'Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
    
-    sync_databases('gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)    
-    sync_databases('human-circdb.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
-    sync_databases('insulators-experimental.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
-    sync_databases('insulators-computational.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
+    sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)    
+    sync_databases(working_directory, 'human-circdb.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
+    sync_databases(working_directory, 'insulators-experimental.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
+    sync_databases(working_directory, 'insulators-computational.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
     ensemble_cds_metadata = db_cache('ensembl.json', get_ensembl_data, [gene_name])
 
@@ -626,9 +737,7 @@ def main():
         enhancers = enhancers + extract_enhancers(enhancer_path, gene_id)
     #regions = regions + dedup_regions(enhancers)
 
-    arrange(variants, regions)
-
-    #non_coding_rnas = db_cache('rna_central.json', query_rnacentral, (chromosome, gene_start, gene_end))
+    #arrange(variants, regions)
 
 #    stats = {
 #        'lncRNA': 0
