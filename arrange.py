@@ -222,7 +222,86 @@ def query_rnacentral(params):
     #--region_name, strand, region_start, region_stop, exon_count
     
     sql_query = f'''
-    SELECT * from rnacen.rnc_accessions acc
+    
+    SELECT
+    --acc.id AS acc_id,
+    acc.accession AS acc_accession,
+    acc.anticodon AS acc_anticodon,
+    acc.classification AS acc_classification,
+    acc.common_name AS acc_common_name,
+    --acc.database AS acc_database,
+    acc.db_xref AS acc_acc_db_xref,
+    acc.description AS acc_description,
+    acc.division AS acc_division,
+    acc.experiment AS acc_experiment,
+    acc.external_id AS acc_external_id,
+    acc.feature_end AS acc_feature_end,
+    acc.feature_name AS acc_feature_name,
+    acc.feature_start AS acc_feature_start,
+    acc.function AS acc_function,
+    acc.gene AS acc_gene,
+    acc.gene_synonym AS acc_gene_synonym,
+    --acc.genome_position AS acc_genome_position,
+    acc.inference AS acc_inference,
+    acc.is_composite AS acc_is_composite,
+    acc.keywords AS acc_keywords,
+    acc.locus_tag AS acc_locus_tag,
+    acc.mol_type AS acc_mol_type,
+    acc.ncrna_class AS acc_ncrna_class,
+    acc.non_coding_id AS acc_non_coding_id,
+    acc.note AS acc_note,
+    acc.old_locus_tag AS acc_old_locus_tag,
+    acc.optional_id AS acc_acc_optional_id,
+    acc.ordinal AS acc_ordinal,
+    acc.organelle AS acc_organelle,
+    acc.parent_ac AS acc_parent_ac,
+    acc.product AS acc_product,
+    acc.project AS acc_project,
+    acc.seq_version AS acc_seq_version,
+    acc.species AS acc_species,
+    acc.standard_name AS acc_standard_name,
+    x.id AS xref_id,
+    --x.accession AS xref_accession,
+    x.created AS xref_created,
+    --x.db AS xref_db,
+    x.last AS xref_last,
+    x.upi AS xref_upi,
+    x.deleted AS xref_deleted,
+    x.taxid AS xref_taxid,
+    x.timestamp AS xref_timestamp,
+    x.userstamp AS xref_userstamp,
+    x.version AS xref_version,
+    x.version_i AS xref_version_i,
+    r.id AS r_id,
+    r.upi AS r_upi,
+    r.databases AS r_databases,
+    r.description AS r_description,
+    r.has_coordinates AS r_has_coordinates,
+    r.is_active AS r_is_active,
+    r.last_release AS r_last_release,
+    r.rfam_problems AS r_rfam_problems,
+    r.rna_type AS r_rna_type,
+    r.short_description AS r_short_description,
+    r.taxid AS r_taxid,
+    r.update_date AS r_update_date,
+    sr.id AS sr_id,
+    sr.assembly_id AS sr_assembly,
+    sr.urs_taxid AS sr_urs_taxid,
+    sr.chromosome AS sr_chromosome,
+    sr.exon_count AS sr_exon_count,
+    sr.identity AS sr_identity,
+    sr.providing_databases AS sr_providing_databases,
+    sr.region_name AS sr_region_name,
+    sr.region_start AS sr_region_start,
+    sr.region_stop AS sr_region_stop,
+    sr.strand AS sr_strand,
+    sr.was_mapped AS sr_was_mapped
+    from rnacen.rnc_accessions acc
+
+    LEFT JOIN rnacen.xref x on (acc.accession = x.ac)
+    left join rnacen.rnc_rna_precomputed r on (x.upi = r.upi)
+    left join rnacen.rnc_sequence_regions sr on (r.id = sr.urs_taxid)    
+
     where gene like '%{gene_name}%'
     '''
     t_host = "hh-pgsql-public.ebi.ac.uk"
@@ -496,6 +575,9 @@ def dedup_regions(regions):
     print(unique_region_coordinates)
     print(len(unique_regions))
     return unique_regions
+
+def convert_coordinates(file_path):
+    os.system('CrossMap.py bed hg18ToHg19.over.chain.gz test.hg18.bed')
 
 def main():
     gene_name = 'FTO'
