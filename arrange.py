@@ -479,7 +479,7 @@ def sync_gene_enhancers(working_directory):
     for cell_type in cell_type_enhancers:
         url = f'http://www.enhanceratlas.org/data/AllEPs/hs/{cell_type}_EP.txt'
         try:
-            cell_type_enhancer_name = f'{cell_type}.txt'
+            cell_type_enhancer_name = f'{cell_type}.hg19.txt'
             sync_databases(working_directory, cell_type_enhancer_name, url, False)
             enhancer_paths.append(cell_type_enhancer_name)
         except:
@@ -686,7 +686,8 @@ def dedup_regions(regions):
     return unique_regions
 
 def convert_coordinates(file_path):
-    os.system('CrossMap.py bed hg18ToHg19.over.chain.gz test.hg18.bed')
+    new_file_path = file_path.replace(".hg19.", ".")
+    os.system(f'CrossMap.py bed {file_path} {new_file_path}')
 
 def main():
     working_directory = 'work'
@@ -700,9 +701,9 @@ def main():
     sync_databases(working_directory, 'Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
    
     sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)    
-    sync_databases(working_directory, 'human-circdb.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
-    sync_databases(working_directory, 'insulators-experimental.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
-    sync_databases(working_directory, 'insulators-computational.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
+    sync_databases(working_directory, 'human-circdb.hg19.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
+    sync_databases(working_directory, 'insulators-experimental.hg19.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
+    sync_databases(working_directory, 'insulators-computational.hg19.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
     ensemble_cds_metadata = db_cache(f'./{working_directory}/ensembl.json', get_ensembl_data, [gene_name])
 
