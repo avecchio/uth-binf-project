@@ -7,8 +7,9 @@ import shutil
 import gzip
 import psycopg2
 import datetime
-#import matplotlib.pyplot as plt
-
+import matplotlib.pyplot as plt
+from liftover import get_lifter
+import liftover
 import shutil
 import urllib.request as reques        
 import os.path
@@ -25,18 +26,19 @@ def make_working_directory(directory):
 
 def sync_databases(working_directory, file_name, url, unzip):
     if path.exists(f'./{working_directory}/{file_name}') == False:
-        local_filename = file_name 
+        local_filename = file_name
         local_filepath = f'./{working_directory}/{local_filename}'
 
         wget.download(url, local_filepath)
 
+        filename = local_filepath
         if unzip:
-            unzipped_filename = local_filepath[:-3]
+            unzipped_filename = local_filepath.replace(".gz","")
             with gzip.open(local_filepath, 'rb') as f_in:
                 with open(unzipped_filename, 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
-            return unzipped_filename
-        return local_filepath
+            filename = unzipped_filename
+        return filename
 
 def myconverter(o):
     if isinstance(o, datetime.datetime):
@@ -54,91 +56,55 @@ def db_cache(file_name, callback, callback_params):
             outfile.write(json_str)
         return data
 
-def plot_variant_frequencies():
-    pass
-    #fig = plt.figure()
-    #ax = fig.add_axes([0,0,1,1])
-    #langs = ['C', 'C++', 'Java', 'Python', 'PHP']
-    #students = [23,17,35,29,12]
-    #ax.bar(langs,students)
-    #plt.show()
+def plot_variant_frequencies(frequencies):
+    fig = plt.figure()
+    ax = fig.add_axes([0,0,1,1])
+    ax.bar(list(frequencies.keys()),list(frequencies.values()))
+    plt.xlabel('Value')
+    plt.ylabel('Frequency')
+    plt.title('My Very Own Histogram')
+    plt.savefig('variant_frequencies.png')
 
 def plot_overlapping_variants():
-    pass
-
+    d = [0,2,4,5,6,1,2,41,23]
     # An "interface" to matplotlib.axes.Axes.hist() method
-    #n, bins, patches = plt.hist(x=d, bins='auto', color='#0504aa',
-    #                            alpha=0.7, rwidth=0.85)
-    #plt.grid(axis='y', alpha=0.75)
-    #plt.xlabel('Value')
-    #plt.ylabel('Frequency')
-    #plt.title('My Very Own Histogram')
-    #plt.text(23, 45, r'$\mu=15, b=3$')
-    #maxfreq = n.max()
+    n, bins, patches = plt.hist(x=d, bins='auto', color='#0504aa',
+                                alpha=0.7, rwidth=0.85)
+    plt.grid(axis='y', alpha=0.75)
+    plt.xlabel('Value')
+    plt.ylabel('Frequency')
+    plt.title('My Very Own Histogram')
+    plt.text(23, 45, r'$\mu=15, b=3$')
+    maxfreq = n.max()
     # Set a clean upper y-axis limit.
     #plt.ylim(ymax=np.ceil(maxfreq / 10) * 10 if maxfreq % 10 else maxfreq + 10)
+    plt.savefig('unique_variant_region_overlap.png')
 
-def arrange(variants, regions):
-    #frequencies = {}
-    #frequencies['unknown'] = 0
 
-    items = []
-    region_counters = {}
-    variant_counters = {}
-
-    for region in regions:
-        region_counters[region['identifier']] = {
-            'region': region,
-            'variants': []
-        }
-
+def count_regional_variant_frequencies(regions, variants):
+    regional_frequencies = {}
+    unique_variant_regions = {}
     for variant in variants:
-        unique_regions = []
+        counter = []
         for region in regions:
-            in_region = False
-            if in_region:
-                region['type']
+            if region['type'] not in regional_frequencies:
+                regional_frequencies[region['type']] = 0
+            after_start = region['start'] <= variant['coordinate']
+            before_end = region['end'] >= variant['coordinate']
+            print(after_start, before_end)
+            if after_start and before_end:
+                regional_frequencies[region['type']] += 1
+                if region['type'] not in counter:
+                    counter.append(region['type'])
+        unique_variant_region = len(counter)
+        if str(unique_variant_region) not in unique_variant_regions:
+            unique_variant_regions[str(unique_variant_region)] = 0
+        unique_variant_regions[str(unique_variant_region)] += 1
+    return regional_frequencies, unique_variant_regions
 
-
-#    for variant in variants:
-#        items.append({
-#            'name': 'variant',
-#            'position': variant['start'],
-#        })
-#        items.append({
-#            'name': 'variant',
-#            'position': variant['stop'],
-#        })
-#    for region in regions:
-#        items.append({
-#            'name': region['identifier'] + '_start',
-#            'position': region['start'],
-#            'type': region['type']
-#        })
-#        items.append({
-#            'name': region['identifier'] + '_end',
-#            'position': region['end'],
-#            'type': region['type']
-#        })
-    
-    items = sorted(items, key=lambda item: item['position'])
-
-    #    items.append(region)
-    #items.sort(key=locus)
-
-    #region = 'unknown'
-    
-    #for item in items:
-    #    if item['type'] == 'variant':
-    #        frequencies[region] = frequencies[region] + 1
-    #    elif item['type'] == 'region':
-    #        if item['position'] == 'start':
-    #            region = item['name']
-    #        else:
-    #            region = 'unknown'
-    #return frequencies
-    for item in items:
-        print(item)
+def convert_coordinate(chromosome, coordinate):
+    converter = get_lifter('hg19', 'hg38')
+    return converter[chromosome][coordinate]
 
 def construct_rna_variants(start, rna, variants):
     rnas = [rna]
@@ -487,7 +453,7 @@ def sync_gene_enhancers(working_directory):
 
     return enhancer_paths
 
-def extract_circular_rnas(file_path, gene_name):
+def extract_circular_rnas(file_path, gene_name, chromosome):
     circular_rnas = []
     with open(file_path) as fp:
         lines = fp.readlines()
@@ -502,8 +468,8 @@ def extract_circular_rnas(file_path, gene_name):
                 if entry[11] == gene_name:
                     circular_rnas.append({
                         'identifier': identifier,
-                        'start': int(start),
-                        'end': int(end),
+                        'start': convert_coordinate(chromosome, int(start)),
+                        'end': convert_coordinate(chromosome, int(end)),
                         'type': 'circular_rna',
                         'strand': strand
                     })
@@ -515,7 +481,7 @@ def get_coordinates(coord_str):
     start, end = coordinates.split("-")
     return chr, start, end
 
-def extract_enhancers(working_directory, file_path, gene_identifier):
+def extract_enhancers(working_directory, file_path, gene_identifier, chromosome):
     enhancers = {}
     counter = 0
     with open(f'./{working_directory}/{file_path}') as fp:
@@ -531,8 +497,8 @@ def extract_enhancers(working_directory, file_path, gene_identifier):
                     if coordinate_id not in enhancers:
                         enhancers[coordinate_id] = {
                             'identifier': f'Enhancer{counter}',
-                            'start': int(start),
-                            'end': int(end),
+                            'start': convert_coordinate(chromosome, int(start)),
+                            'end': convert_coordinate(chromosome, int(end)),
                             'type': 'enhancer'
                         }
             counter = counter + 1
@@ -563,7 +529,7 @@ def extract_promoters(file_path, gene_name):
             counter = counter + 1
     return promoters
 
-def extract_insulators(file_path, gene_name):
+def extract_insulators(file_path, gene_name, chromosome):
     known_insulators = []
     insulators = []
     counter = 0
@@ -593,8 +559,8 @@ def extract_insulators(file_path, gene_name):
                 if flanking and (species == 'Human'):
                     insulators.append({
                         'identifier': identifier,
-                        'start': int(start),
-                        'end': int(end),
+                        'start': convert_coordinate(chromosome, int(start)),
+                        'end': convert_coordinate(chromosome, int(end)),
                         'type': 'insulator'
                     })
             counter = counter + 1
@@ -685,57 +651,59 @@ def dedup_regions(regions):
     print(len(unique_regions))
     return unique_regions
 
-def convert_coordinates(file_path):
-    new_file_path = file_path.replace(".hg19.", ".")
-    os.system(f'CrossMap.py bed {file_path} {new_file_path}')
-
 def main():
-    working_directory = 'work'
-    gene_name = 'FTO'
+    #working_directory = 'work'
+    #gene_name = 'FTO'
 
-    make_working_directory(working_directory)
-    rnas = db_cache(f'./{working_directory}/rna_central.json', query_rnacentral, [gene_name])
+    #make_working_directory(working_directory)
+    #rnas = db_cache(f'./{working_directory}/rna_central.json', query_rnacentral, [gene_name])
+
 
     condition = 'Growth retardation'
     associated_enhancer_paths = sync_gene_enhancers(working_directory)
     sync_databases(working_directory, 'Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
-   
+    
     sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)    
-    sync_databases(working_directory, 'human-circdb.hg19.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
-    sync_databases(working_directory, 'insulators-experimental.hg19.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
-    sync_databases(working_directory, 'insulators-computational.hg19.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
-
+    sync_databases(working_directory, 'human-circdb.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
+    sync_databases(working_directory, 'insulators-experimental.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
+    sync_databases(working_directory, 'insulators-computational.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
+    
     ensemble_cds_metadata = db_cache(f'./{working_directory}/ensembl.json', get_ensembl_data, [gene_name])
 
     gene_id = ensemble_cds_metadata['id']
+    region_name = ensemble_cds_metadata['seq_region_name']
+    chromosome = f'chr{region_name}'
 
-    variants = []
-    gwas_snps = db_cache(f'./{working_directory}/gwas_variants.json', query_gwas, [gene_name, condition])
+    #variants = []
+    #gwas_snps = db_cache(f'./{working_directory}/gwas_variants.json', query_gwas, [gene_name, condition])
     #variants = variants + gwas_snps
 
-    ncbi_clinical_variants = db_cache(f'./{working_directory}/clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
+    #ncbi_clinical_variants = db_cache(f'./{working_directory}/clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
     #variants = variants + ncbi_clinical_variants
 
     #regions = []
 
-    features = extract_genecode_features(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.g', gene_id)
+    #features = extract_genecode_features(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
     #regions = regions + features
 
-    promoters = extract_promoters(f'./{working_directory}/Hs_EPDnew.bed', gene_name)
+    #promoters = extract_promoters(f'./{working_directory}/Hs_EPDnew.bed', gene_name)
     #regions = regions + promoters
 
-    circular_rnas = extract_circular_rnas(f'./{working_directory}/human-circdb.txt', gene_name)
+    #circular_rnas = extract_circular_rnas(f'./{working_directory}/human-circdb.txt', gene_name, chromosome)
     #regions = regions + dedup_regions(circular_rnas)
 
-    computational_insulators = extract_insulators(f'./{working_directory}/insulators-computational', gene_name)
+    #computational_insulators = extract_insulators(f'./{working_directory}/insulators-computational.txt', gene_name, chromosome)
     #regions = regions + dedup_regions(computational_insulators)
 
-    experimental_insulators = extract_insulators(f'./{working_directory}/insulators-experimental', gene_name)
+    #experimental_insulators = extract_insulators(f'./{working_directory}/insulators-experimental.txt', gene_name, chromosome)
     #regions = regions + dedup_regions(experimental_insulators)
 
-    enhancers = []
-    for enhancer_path in associated_enhancer_paths:
-        enhancers = enhancers + extract_enhancers(enhancer_path, gene_id)
+    #plot_variant_frequencies()
+    #plot_overlapping_variants()
+
+    #enhancers = []
+    #for enhancer_path in associated_enhancer_paths:
+    #    enhancers = enhancers + extract_enhancers(working_directory, enhancer_path, gene_id, chromosome)
     #regions = regions + dedup_regions(enhancers)
 
     #arrange(variants, regions)
