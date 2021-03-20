@@ -56,13 +56,22 @@ def db_cache(file_name, callback, callback_params):
             outfile.write(json_str)
         return data
 
-def plot_variant_frequencies(frequencies):
-    fig = plt.figure()
-    ax = fig.add_axes([0,0,1,1])
-    ax.bar(list(frequencies.keys()),list(frequencies.values()))
+def plot_variant_frequencies(frequencies_dict):
+    keys = list(frequencies_dict.keys())
+    #x = ['Nuclear', 'Hydro', 'Gas', 'Oil', 'Coal', 'Biofuel']
+    values = list(frequencies_dict.values)
+    #energy = [5, 6, 15, 22, 24, 8]
+    #variance = [1, 2, 7, 4, 2, 3]
+
+    keys_pos = [i for i, _ in enumerate(keys)]
+
+    plt.bar(keys_pos, values, color='green') #, yerr=variance)
     plt.xlabel('Value')
     plt.ylabel('Frequency')
     plt.title('My Very Own Histogram')
+
+    #plt.xticks(x_pos, x)
+
     plt.savefig('variant_frequencies.png')
 
 def plot_overlapping_variants():
@@ -315,10 +324,13 @@ def query_rnacentral(params):
     t_user = "reader"
     t_pw = "NWDMCE5xdipIjRrp"
     try:
+        print('connecting')
         conn = psycopg2.connect(host=t_host, port=t_port, dbname=t_dbname, user=t_user, password=t_pw)
         cur = conn.cursor()
+        print('executing query')
         cur.execute(sql_query)
         row = cur.fetchone()
+        print('fetching results')
 
         results = []
         while row is not None:
@@ -327,73 +339,73 @@ def query_rnacentral(params):
         cur.close()
         result_dictionaries = []
         return [ 
-            {"acc_id,": x[0],
-            "acc_accession,": x[1],
-            "acc_anticodon,": x[2],
-            "acc_classification,": x[3],
-            "acc_common_name,": x[4],
-            "acc_acc_db_xref,": x[5],
-            "acc_description,": x[6],
-            "acc_division,": x[7],
-            "acc_experiment,": x[8],
-            "acc_external_id,": x[9],
-            "acc_feature_end,": x[10],
-            "acc_feature_name,": x[11],
-            "acc_feature_start,": x[12],
-            "acc_function,": x[13],
-            "acc_gene,": x[14],
-            "acc_gene_synonym,": x[15],
-            "acc_inference,": x[16],
-            "acc_is_composite,": x[17],
-            "acc_keywords,": x[18],
-            "acc_locus_tag,": x[19],
-            "acc_mol_type,": x[20],
-            "acc_ncrna_class,": x[21],
-            "acc_non_coding_id,": x[22],
-            "acc_note,": x[23],
-            "acc_old_locus_tag,": x[24],
-            "acc_acc_optional_id,": x[25],
-            "acc_ordinal,": x[26],
-            "acc_organelle,": x[27],
-            "acc_parent_ac,": x[28],
-            "acc_product,": x[29],
-            "acc_project,": x[30],
-            "acc_seq_version,": x[31],
-            "acc_species,": x[32],
-            "acc_standard_name,": x[33],
-            "xref_id,": x[34],
-            "xref_created,": x[35],
-            "xref_last,": x[36],
-            "xref_upi,": x[37],
-            "xref_deleted,": x[38],
-            "xref_taxid,": x[39],
-            "xref_timestamp,": x[40],
-            "xref_userstamp,": x[41],
-            "xref_version,": x[42],
-            "xref_version_i,": x[43],
-            "r_id,": x[44],
-            "r_upi,": x[45],
-            "r_databases,": x[46],
-            "r_description,": x[47],
-            "r_has_coordinates,": x[48],
-            "r_is_active,": x[49],
-            "r_last_release,": x[50],
-            "r_rfam_problems,": x[51],
-            "r_rna_type,": x[52],
-            "r_short_description,": x[53],
-            "r_taxid,": x[54],
-            "r_update_date,": x[55],
-            "sr_id,": x[56],
-            "sr_assembly,": x[57],
-            "sr_urs_taxid,": x[58],
-            "sr_chromosome,": x[59],
-            "sr_exon_count,": x[60],
-            "sr_identity,": x[61],
-            "sr_providing_databases,": x[62],
-            "sr_region_name,": x[63],
-            "sr_region_start,": x[64],
-            "sr_region_stop,": x[65],
-            "sr_strand,": x[66],
+            {"acc_id": x[0],
+            "acc_accession": x[1],
+            "acc_anticodon": x[2],
+            "acc_classification": x[3],
+            "acc_common_name": x[4],
+            "acc_acc_db_xref": x[5],
+            "acc_description": x[6],
+            "acc_division": x[7],
+            "acc_experiment": x[8],
+            "acc_external_id": x[9],
+            "acc_feature_end": x[10],
+            "acc_feature_name": x[11],
+            "acc_feature_start": x[12],
+            "acc_function": x[13],
+            "acc_gene": x[14],
+            "acc_gene_synonym": x[15],
+            "acc_inference": x[16],
+            "acc_is_composite": x[17],
+            "acc_keywords": x[18],
+            "acc_locus_tag": x[19],
+            "acc_mol_type": x[20],
+            "acc_ncrna_class": x[21],
+            "acc_non_coding_id": x[22],
+            "acc_note": x[23],
+            "acc_old_locus_tag": x[24],
+            "acc_acc_optional_id": x[25],
+            "acc_ordinal": x[26],
+            "acc_organelle": x[27],
+            "acc_parent_ac": x[28],
+            "acc_product": x[29],
+            "acc_project": x[30],
+            "acc_seq_version": x[31],
+            "acc_species": x[32],
+            "acc_standard_name": x[33],
+            "xref_id": x[34],
+            "xref_created": x[35],
+            "xref_last": x[36],
+            "xref_upi": x[37],
+            "xref_deleted": x[38],
+            "xref_taxid": x[39],
+            "xref_timestamp": x[40],
+            "xref_userstamp": x[41],
+            "xref_version": x[42],
+            "xref_version_i": x[43],
+            "r_id": x[44],
+            "r_upi": x[45],
+            "r_databases": x[46],
+            "r_description": x[47],
+            "r_has_coordinates": x[48],
+            "r_is_active": x[49],
+            "r_last_release": x[50],
+            "r_rfam_problems": x[51],
+            "r_rna_type": x[52],
+            "r_short_description": x[53],
+            "r_taxid": x[54],
+            "r_update_date": x[55],
+            "sr_id": x[56],
+            "sr_assembly": x[57],
+            "sr_urs_taxid": x[58],
+            "sr_chromosome": x[59],
+            "sr_exon_count": x[60],
+            "sr_identity": x[61],
+            "sr_providing_databases": x[62],
+            "sr_region_name": x[63],
+            "sr_region_start": x[64],
+            "sr_region_stop": x[65],
+            "sr_strand": x[66],
             "sr_was_mapped": x[67]}
         for x in results]
     except (Exception, psycopg2.DatabaseError) as error:
@@ -652,36 +664,37 @@ def dedup_regions(regions):
     return unique_regions
 
 def main():
-    #working_directory = 'work'
-    #gene_name = 'FTO'
+    working_directory = 'work'
+    gene_name = 'FTO'
 
-    #make_working_directory(working_directory)
-    #rnas = db_cache(f'./{working_directory}/rna_central.json', query_rnacentral, [gene_name])
+    make_working_directory(working_directory)
+    nc_rnas = db_cache(f'./{working_directory}/rna_central.json', query_rnacentral, [gene_name])
 
 
     condition = 'Growth retardation'
     associated_enhancer_paths = sync_gene_enhancers(working_directory)
     sync_databases(working_directory, 'Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
-    
-    sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)    
-    sync_databases(working_directory, 'human-circdb.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
-    sync_databases(working_directory, 'insulators-experimental.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
-    sync_databases(working_directory, 'insulators-computational.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
-    
+   
+    sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)
+    sync_databases(working_directory, 'Supplementary_Dataset_S5.gff', 'http://snoatlas.bioinf.uni-leipzig.de/Supplementary_Dataset_S5.gff', False)
+    sync_databases(working_directory, 'human-circdb.hg19.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
+    sync_databases(working_directory, 'insulators-experimental.hg19.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
+    sync_databases(working_directory, 'insulators-computational.hg19.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
+
     ensemble_cds_metadata = db_cache(f'./{working_directory}/ensembl.json', get_ensembl_data, [gene_name])
 
     gene_id = ensemble_cds_metadata['id']
     region_name = ensemble_cds_metadata['seq_region_name']
     chromosome = f'chr{region_name}'
 
-    #variants = []
-    #gwas_snps = db_cache(f'./{working_directory}/gwas_variants.json', query_gwas, [gene_name, condition])
-    #variants = variants + gwas_snps
+    variants = []
+    gwas_snps = db_cache(f'./{working_directory}/gwas_variants.json', query_gwas, [gene_name, condition])
+    variants = variants + gwas_snps
 
-    #ncbi_clinical_variants = db_cache(f'./{working_directory}/clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
-    #variants = variants + ncbi_clinical_variants
+    ncbi_clinical_variants = db_cache(f'./{working_directory}/clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
+    variants = variants + ncbi_clinical_variants
 
-    #regions = []
+    regions = []
 
     #features = extract_genecode_features(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
     #regions = regions + features
@@ -697,6 +710,18 @@ def main():
 
     #experimental_insulators = extract_insulators(f'./{working_directory}/insulators-experimental.txt', gene_name, chromosome)
     #regions = regions + dedup_regions(experimental_insulators)
+
+
+    #filtered_nc_rnas = []
+    #for rna in nc_rnas:
+    #    print(rna)
+    #if rna['acc_species'] == 'Homo sapiens' and rna['sr_region_start'] is not None and rna['sr_region_end'] is not None:
+    #    filtered_nc_rnas.append(rna)
+    #    print(rna['acc_external_id'])
+
+    #for rna in filtered_nc_rnas:
+    #    print(rna)
+    #print(len(filtered_nc_rnas))
 
     #plot_variant_frequencies()
     #plot_overlapping_variants()
