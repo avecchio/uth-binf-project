@@ -54,13 +54,23 @@ def db_cache(file_name, callback, callback_params):
             outfile.write(json_str)
         return data
 
-def plot_variant_frequencies():
+def plot_variant_frequencies(data):
     pass
-    #fig = plt.figure()
-    #ax = fig.add_axes([0,0,1,1])
-    #langs = ['C', 'C++', 'Java', 'Python', 'PHP']
-    #students = [23,17,35,29,12]
-    #ax.bar(langs,students)
+    #keys = list(data.keys())
+    #x = ['Nuclear', 'Hydro', 'Gas', 'Oil', 'Coal', 'Biofuel']
+    #values = list(data.values)
+    #energy = [5, 6, 15, 22, 24, 8]
+    #variance = [1, 2, 7, 4, 2, 3]
+
+    #keys_pos = [i for i, _ in enumerate(keys)]
+
+    #plt.bar(keys_pos, values, color='green') #, yerr=variance)
+    #plt.xlabel("Energy Source")
+    #plt.ylabel("Energy Output (GJ)")
+    #plt.title("Energy output from various fuel sources")
+
+    #plt.xticks(x_pos, x)
+
     #plt.show()
 
 def plot_overlapping_variants():
@@ -700,7 +710,8 @@ def main():
     associated_enhancer_paths = sync_gene_enhancers(working_directory)
     sync_databases(working_directory, 'Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
    
-    sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)    
+    sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)
+    sync_databases(working_directory, 'Supplementary_Dataset_S5.gff', 'http://snoatlas.bioinf.uni-leipzig.de/Supplementary_Dataset_S5.gff', False)
     sync_databases(working_directory, 'human-circdb.hg19.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
     sync_databases(working_directory, 'insulators-experimental.hg19.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
     sync_databases(working_directory, 'insulators-computational.hg19.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
