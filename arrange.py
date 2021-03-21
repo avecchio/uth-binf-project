@@ -100,9 +100,9 @@ def count_regional_variant_frequencies(regions, variants):
                 print(region)
             if region['type'] not in regional_frequencies:
                 regional_frequencies[region['type']] = 0
-            print(region)
-            after_start = region['start'] <= variant['start']
-            before_end = region['end'] >= variant['start']
+            #print(region)
+            after_start = region['start'] <= variant['start'] or region['start'] <= variant['stop']
+            before_end = region['end'] >= variant['start'] or region['start'] >= variant['stop']
             if after_start and before_end:
                 regional_frequencies[region['type']] += 1
                 if region['type'] not in counter:
@@ -688,6 +688,7 @@ def main():
     regions = regions + sno_rnas
 
     features = extract_genecode_features(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
+    print(features)
     regions = regions + features
 
     promoters = extract_promoters(f'./{working_directory}/Hs_EPDnew.bed', gene_name)
@@ -707,8 +708,16 @@ def main():
         enhancers = enhancers + extract_enhancers(working_directory, enhancer_path, gene_id, chromosome)
     regions = regions + dedup_regions(enhancers)
 
-    regional_frequencies, unique_variant_regions = count_regional_variant_frequencies(regions, variants)
-    print(regional_frequencies)
+    unique_regions = []
+
+    for region in regions:
+        if region['type'] not in unique_regions:
+            unique_regions.append(region['type'])
+    print(unique_regions)
+
+    #regional_frequencies, unique_variant_regions = count_regional_variant_frequencies(regions, variants)
+    #print(regional_frequencies)
+    #print(unique_variant_regions)
 
     #write_regions_to_gff3(gene_name, chromosome, regions)
 
