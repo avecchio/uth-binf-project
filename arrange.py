@@ -68,7 +68,7 @@ def plot_variant_frequencies(frequencies_dict):
     plt.bar(keys_pos, values, color='green') #, yerr=variance)
     plt.xlabel('Value')
     plt.ylabel('Frequency')
-    plt.title('My Very Own Histogram')
+    plt.title('Frequency of Variants per Genomic Region')
 
     #plt.xticks(x_pos, x)
 
@@ -96,11 +96,13 @@ def count_regional_variant_frequencies(regions, variants):
     for variant in variants:
         counter = []
         for region in regions:
+            if 'type' not in region:
+                print(region)
             if region['type'] not in regional_frequencies:
                 regional_frequencies[region['type']] = 0
-            after_start = region['start'] <= variant['coordinate']
-            before_end = region['end'] >= variant['coordinate']
-            print(after_start, before_end)
+            print(region)
+            after_start = region['start'] <= variant['start']
+            before_end = region['end'] >= variant['start']
             if after_start and before_end:
                 regional_frequencies[region['type']] += 1
                 if region['type'] not in counter:
@@ -113,7 +115,7 @@ def count_regional_variant_frequencies(regions, variants):
 
 def convert_coordinate(chromosome, coordinate):
     converter = get_lifter('hg19', 'hg38')
-    return converter[chromosome][coordinate]
+    return converter[chromosome][coordinate][0][1]
 
 def construct_rna_variants(start, rna, variants):
     rnas = [rna]
@@ -152,6 +154,15 @@ def is_gwas_snp_associated(snpid, condition):
             return True
     return False
 
+def get_gwas_alleles(snpid):
+    server = "https://rest.ensembl.org"
+    ext = f"/variation/human/{snpid}?"
+    
+    r = requests.get(server+ext, headers={ "Content-Type" : "application/json"})
+        
+    decoded = r.json()
+    return repr(decoded)
+
 def query_gwas(params):
     gene_name, condition = params
     associated_snps = []
@@ -161,12 +172,18 @@ def query_gwas(params):
     snps = content['_embedded']['singleNucleotidePolymorphisms']
     for snp in snps:
         snpid = snp['rsId']
+        alleles = get_gwas_alleles(snpid)
+        print('===========================')
         is_associated = is_gwas_snp_associated(snpid, condition)
+        
         if is_associated:
-            associated_snps.append({
-                'identifier': f'gwas_var{counter}',
-                'coordinate': int(start),
-            })
+            for allele in alleles['mappings']:
+                associated_snps.append({
+                    'reference_allele': allele['ancestral_allele'],
+                    'alternate_allele': allele['allele_string'],
+                    'start': int(allele['start']),
+                    'stop': int(allele['end']),
+                })
     return associated_snps
 
 def query_ncbi(query_url, restype):
@@ -225,107 +242,10 @@ def get_dbsnp_coords(id):
     snapshot_data = content['primary_snapshot_data']
     print(snapshot_data)
 
-
-def query_rnacentral(params):
-    gene_name = params[0]
-    """ query data from the vendors table """
-    conn = None
-
-    #--accession, feature_start, feature_end, feature_name, species,
-    #--external_id, anticodon, sr.chromosome, gene, gene_synonym, locus_tag,
-    #--product, r.rna_type, ac, r.taxid, acc.description, r.description,
-    #--region_name, strand, region_start, region_stop, exon_count
-    
-    columns = '''
-    acc.id AS acc_id,
-    acc.accession AS acc_accession,
-    acc.anticodon AS acc_anticodon,
-    acc.classification AS acc_classification,
-    acc.common_name AS acc_common_name,
-    acc.db_xref AS acc_acc_db_xref,
-    acc.description AS acc_description,
-    acc.division AS acc_division,
-    acc.experiment AS acc_experiment,
-    acc.external_id AS acc_external_id,
-    acc.feature_end AS acc_feature_end,
-    acc.feature_name AS acc_feature_name,
-    acc.feature_start AS acc_feature_start,
-    acc.function AS acc_function,
-    acc.gene AS acc_gene,
-    acc.gene_synonym AS acc_gene_synonym,
-    acc.inference AS acc_inference,
-    acc.is_composite AS acc_is_composite,
-    acc.keywords AS acc_keywords,
-    acc.locus_tag AS acc_locus_tag,
-    acc.mol_type AS acc_mol_type,
-    acc.ncrna_class AS acc_ncrna_class,
-    acc.non_coding_id AS acc_non_coding_id,
-    acc.note AS acc_note,
-    acc.old_locus_tag AS acc_old_locus_tag,
-    acc.optional_id AS acc_acc_optional_id,
-    acc.ordinal AS acc_ordinal,
-    acc.organelle AS acc_organelle,
-    acc.parent_ac AS acc_parent_ac,
-    acc.product AS acc_product,
-    acc.project AS acc_project,
-    acc.seq_version AS acc_seq_version,
-    acc.species AS acc_species,
-    acc.standard_name AS acc_standard_name,
-    x.id AS xref_id,
-    x.created AS xref_created,
-    x.last AS xref_last,
-    x.upi AS xref_upi,
-    x.deleted AS xref_deleted,
-    x.taxid AS xref_taxid,
-    x.timestamp AS xref_timestamp,
-    x.userstamp AS xref_userstamp,
-    x.version AS xref_version,
-    x.version_i AS xref_version_i,
-    r.id AS r_id,
-    r.upi AS r_upi,
-    r.databases AS r_databases,
-    r.description AS r_description,
-    r.has_coordinates AS r_has_coordinates,
-    r.is_active AS r_is_active,
-    r.last_release AS r_last_release,
-    r.rfam_problems AS r_rfam_problems,
-    r.rna_type AS r_rna_type,
-    r.short_description AS r_short_description,
-    r.taxid AS r_taxid,
-    r.update_date AS r_update_date,
-    sr.id AS sr_id,
-    sr.assembly_id AS sr_assembly,
-    sr.urs_taxid AS sr_urs_taxid,
-    sr.chromosome AS sr_chromosome,
-    sr.exon_count AS sr_exon_count,
-    sr.identity AS sr_identity,
-    sr.providing_databases AS sr_providing_databases,
-    sr.region_name AS sr_region_name,
-    sr.region_start AS sr_region_start,
-    sr.region_stop AS sr_region_stop,
-    sr.strand AS sr_strand,
-    sr.was_mapped AS sr_was_mapped
-    '''
-    sql_query = f'''
-    
-    SELECT
-    {columns}
-    from rnacen.rnc_accessions acc
-    LEFT JOIN rnacen.xref x on (acc.accession = x.ac)
-    left join rnacen.rnc_rna_precomputed r on (x.upi = r.upi)
-    left join rnacen.rnc_sequence_regions sr on (r.id = sr.urs_taxid)    
-
-    where gene like '%{gene_name}%'
-    '''
-
-    t_host = "hh-pgsql-public.ebi.ac.uk"
-    t_port = "5432"
-    t_dbname = "pfmegrnargs"
-    t_user = "reader"
-    t_pw = "NWDMCE5xdipIjRrp"
+def pg_query(conn_string, sql_query):
     try:
         print('connecting')
-        conn = psycopg2.connect(host=t_host, port=t_port, dbname=t_dbname, user=t_user, password=t_pw)
+        conn = psycopg2.connect(conn_string)
         cur = conn.cursor()
         print('executing query')
         cur.execute(sql_query)
@@ -337,83 +257,82 @@ def query_rnacentral(params):
             results.append(list(row))
             row = cur.fetchone()
         cur.close()
-        result_dictionaries = []
-        return [ 
-            {"acc_id": x[0],
-            "acc_accession": x[1],
-            "acc_anticodon": x[2],
-            "acc_classification": x[3],
-            "acc_common_name": x[4],
-            "acc_acc_db_xref": x[5],
-            "acc_description": x[6],
-            "acc_division": x[7],
-            "acc_experiment": x[8],
-            "acc_external_id": x[9],
-            "acc_feature_end": x[10],
-            "acc_feature_name": x[11],
-            "acc_feature_start": x[12],
-            "acc_function": x[13],
-            "acc_gene": x[14],
-            "acc_gene_synonym": x[15],
-            "acc_inference": x[16],
-            "acc_is_composite": x[17],
-            "acc_keywords": x[18],
-            "acc_locus_tag": x[19],
-            "acc_mol_type": x[20],
-            "acc_ncrna_class": x[21],
-            "acc_non_coding_id": x[22],
-            "acc_note": x[23],
-            "acc_old_locus_tag": x[24],
-            "acc_acc_optional_id": x[25],
-            "acc_ordinal": x[26],
-            "acc_organelle": x[27],
-            "acc_parent_ac": x[28],
-            "acc_product": x[29],
-            "acc_project": x[30],
-            "acc_seq_version": x[31],
-            "acc_species": x[32],
-            "acc_standard_name": x[33],
-            "xref_id": x[34],
-            "xref_created": x[35],
-            "xref_last": x[36],
-            "xref_upi": x[37],
-            "xref_deleted": x[38],
-            "xref_taxid": x[39],
-            "xref_timestamp": x[40],
-            "xref_userstamp": x[41],
-            "xref_version": x[42],
-            "xref_version_i": x[43],
-            "r_id": x[44],
-            "r_upi": x[45],
-            "r_databases": x[46],
-            "r_description": x[47],
-            "r_has_coordinates": x[48],
-            "r_is_active": x[49],
-            "r_last_release": x[50],
-            "r_rfam_problems": x[51],
-            "r_rna_type": x[52],
-            "r_short_description": x[53],
-            "r_taxid": x[54],
-            "r_update_date": x[55],
-            "sr_id": x[56],
-            "sr_assembly": x[57],
-            "sr_urs_taxid": x[58],
-            "sr_chromosome": x[59],
-            "sr_exon_count": x[60],
-            "sr_identity": x[61],
-            "sr_providing_databases": x[62],
-            "sr_region_name": x[63],
-            "sr_region_start": x[64],
-            "sr_region_stop": x[65],
-            "sr_strand": x[66],
-            "sr_was_mapped": x[67]}
-        for x in results]
+        return results
+
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
         return []
     finally:
         if conn is not None:
             conn.close()
+
+
+def query_rnacentral(params):
+    gene_name = params[0]
+    """ query data from the vendors table """
+    conn = None
+    
+    columns = '''
+    acc.id AS acc_id,
+    acc.accession AS acc_accession,
+    acc.anticodon AS acc_anticodon,
+    acc.common_name AS acc_common_name,
+    acc.experiment AS acc_experiment,
+    acc.gene AS acc_gene,
+    acc.species AS acc_species,
+    acc.standard_name AS acc_standard_name,
+    r.has_coordinates AS r_has_coordinates,
+    r.is_active AS r_is_active,
+    sr.assembly_id AS sr_assembly,
+    sr.chromosome AS sr_chromosome,
+    sr.exon_count AS sr_exon_count,
+    sr.region_name AS sr_region_name,
+    sr.region_start AS sr_region_start,
+    sr.region_stop AS sr_region_stop,
+    sr.strand AS sr_strand,
+    r.description as description,
+    r.rna_type
+    '''
+
+    sql_query = f'''    
+    SELECT
+    {columns}
+    from rnacen.rnc_accessions acc
+    LEFT JOIN rnacen.xref x on (acc.accession = x.ac)
+    left join rnacen.rnc_rna_precomputed r on (x.upi = r.upi)
+    left join rnacen.rnc_sequence_regions sr on (r.id = sr.urs_taxid)
+    '''
+
+    conn_string = "host='hh-pgsql-public.ebi.ac.uk' dbname='pfmegrnargs' user='reader' password='NWDMCE5xdipIjRrp'"
+
+    results = []
+    where_clauses = [f"where gene like '%{gene_name}%'", f"where r.description like '%{gene_name}%'"]
+
+    for clause in where_clauses:
+        results = results + pg_query(conn_string, sql_query + clause)
+
+    return [ 
+        {"acc_id": x[0],
+        "acc_accession": x[1],
+        "acc_anticodon": x[2],
+        "acc_common_name": x[3],
+        "acc_experiment": x[4],
+        "acc_gene": x[5],
+        "acc_species": x[6],
+        "acc_standard_name": x[7],
+        "r_has_coordinates": x[8],
+        "r_is_active": x[9],
+        "sr_assembly": x[10],
+        "sr_chromosome": x[11],
+        "sr_exon_count": x[12],
+        "sr_region_name": x[13],
+        "sr_region_start": x[14],
+        "sr_region_stop": x[15],
+        "sr_strand": x[16],
+        "description": x[17],
+        "rna_type": x[18]}
+    for x in results]
+
 
 def is_locale(gene_start, gene_end, start, end, strand):
     if strand == "+":
@@ -588,6 +507,25 @@ def extract_non_coding_rnas(non_coding_rnas):
         rna_regions.append()
     return rna_regions
 
+def extract_sno_rnas(file_path, gene_name):
+    rnas = []
+    with open(file_path) as fp:
+        lines = fp.readlines()
+        for line in lines:
+            metadata = line.split("\t")
+            information = metadata[8].strip()[1:-2].split(",")
+            start = metadata[3]
+            end = metadata[4]
+            host_gene = information[4].split(":")[1]
+            if gene_name in host_gene:
+                rnas.append({
+                    'identifier': information[2],
+                    'start': convert_coordinate(chromosome, int(start)),
+                    'end': convert_coordinate(chromosome, int(end)),
+                    'type': 'snornas'
+                })
+    return rnas
+
 def extract_genecode_features(file_path, ensembl_gene_id):
     features = []
     exon_counter = 0
@@ -644,12 +582,7 @@ def get_ncbi_clinical_variants(params):
         variants = variants + variant_coordinates
     return variants
 
-def gff_writer(regions):
-    for region in regions:
-        pass
-
 def dedup_regions(regions):
-    print(len(regions))
     unique_regions = []
     unique_region_coordinates = {}
     for region in regions:
@@ -659,19 +592,70 @@ def dedup_regions(regions):
         if coordinate not in unique_region_coordinates:
             unique_region_coordinates[coordinate] = 0
             unique_regions.append(region)
-    print(unique_region_coordinates)
-    print(len(unique_regions))
     return unique_regions
+
+def filter_nc_rnas(chromosome, nc_rnas):
+    filtered_nc_rnas = {}
+    rna_ids = []
+    for rna in nc_rnas:
+        start = rna['sr_region_start']
+        end = rna['sr_region_stop']
+        if start is not None and end is not None and rna['acc_species'] == 'Homo sapiens':
+            coord_key = f'{start}-{end}'
+            if coord_key not in filtered_nc_rnas:
+                filtered_nc_rnas[coord_key] = rna
+
+    nc_rnas_list = []
+    for rna in filtered_nc_rnas:
+        start = filtered_nc_rnas[rna]['sr_region_start']
+        end = filtered_nc_rnas[rna]['sr_region_stop']
+        biotype = filtered_nc_rnas[rna]['rna_type']
+        identifier = filtered_nc_rnas[rna]['sr_region_name']
+        assembly = filtered_nc_rnas[rna]['sr_assembly']
+        if assembly == 'GRCh19':
+            nc_rnas_list.append({
+                'identifier': identifier,
+                'start': convert_coordinate(chromosome, int(start)),
+                'end': convert_coordinate(chromosome, int(end)),
+                'type': biotype
+            })
+        elif assembly == 'GRCh38':
+            nc_rnas_list.append({
+                'identifier': identifier,
+                'start': int(start),
+                'end': int(end),
+                'type': biotype
+            })
+        else:
+            print(f'Error: Unknown assembly type [{assembly}] for {identifier}')
+
+    return nc_rnas_list
+
+def write_regions_to_gff3(gene_name, chromosome, regions):
+    entries = []
+    for region in regions:
+        region_type = region['type']
+        region_start = region['start']
+        region_end = region['stop']
+        region_id = region['identifier']
+        entry = f'{gene_name}_regions . {region_type} {region_start} {region_end} . + . ID={region_id};'
+        entries.append(entry)
+
+        gff3_contents = '\n'.join(entries)
+
+        file1 = open(f"{gene_name}_regions.gff3","w")
+        file1.write(gff3_contents) 
+        file1.close()
 
 def main():
     working_directory = 'work'
     gene_name = 'FTO'
 
     make_working_directory(working_directory)
-    nc_rnas = db_cache(f'./{working_directory}/rna_central.json', query_rnacentral, [gene_name])
-
 
     condition = 'Growth retardation'
+
+
     associated_enhancer_paths = sync_gene_enhancers(working_directory)
     sync_databases(working_directory, 'Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
    
@@ -696,58 +680,40 @@ def main():
 
     regions = []
 
-    #features = extract_genecode_features(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
-    #regions = regions + features
+    nc_rnas = db_cache(f'./{working_directory}/rna_central.json', query_rnacentral, [gene_name])
+    filtered_nc_rnas = filter_nc_rnas(chromosome, nc_rnas)
+    regions = regions + filtered_nc_rnas
 
-    #promoters = extract_promoters(f'./{working_directory}/Hs_EPDnew.bed', gene_name)
-    #regions = regions + promoters
+    sno_rnas = extract_sno_rnas(f'./{working_directory}/Supplementary_Dataset_S5.gff', gene_name)
+    regions = regions + sno_rnas
 
-    #circular_rnas = extract_circular_rnas(f'./{working_directory}/human-circdb.txt', gene_name, chromosome)
-    #regions = regions + dedup_regions(circular_rnas)
+    features = extract_genecode_features(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
+    regions = regions + features
 
-    #computational_insulators = extract_insulators(f'./{working_directory}/insulators-computational.txt', gene_name, chromosome)
-    #regions = regions + dedup_regions(computational_insulators)
+    promoters = extract_promoters(f'./{working_directory}/Hs_EPDnew.bed', gene_name)
+    regions = regions + promoters
 
-    #experimental_insulators = extract_insulators(f'./{working_directory}/insulators-experimental.txt', gene_name, chromosome)
-    #regions = regions + dedup_regions(experimental_insulators)
+    circular_rnas = extract_circular_rnas(f'./{working_directory}/human-circdb.hg19.txt', gene_name, chromosome)
+    regions = regions + dedup_regions(circular_rnas)
 
+    computational_insulators = extract_insulators(f'./{working_directory}/insulators-computational.hg19.txt', gene_name, chromosome)
+    regions = regions + dedup_regions(computational_insulators)
 
-    #filtered_nc_rnas = []
-    #for rna in nc_rnas:
-    #    print(rna)
-    #if rna['acc_species'] == 'Homo sapiens' and rna['sr_region_start'] is not None and rna['sr_region_end'] is not None:
-    #    filtered_nc_rnas.append(rna)
-    #    print(rna['acc_external_id'])
+    experimental_insulators = extract_insulators(f'./{working_directory}/insulators-experimental.hg19.txt', gene_name, chromosome)
+    regions = regions + dedup_regions(experimental_insulators)
 
-    #for rna in filtered_nc_rnas:
-    #    print(rna)
-    #print(len(filtered_nc_rnas))
+    enhancers = []
+    for enhancer_path in associated_enhancer_paths:
+        enhancers = enhancers + extract_enhancers(working_directory, enhancer_path, gene_id, chromosome)
+    regions = regions + dedup_regions(enhancers)
+
+    regional_frequencies, unique_variant_regions = count_regional_variant_frequencies(regions, variants)
+    print(regional_frequencies)
+
+    #write_regions_to_gff3(gene_name, chromosome, regions)
 
     #plot_variant_frequencies()
     #plot_overlapping_variants()
-
-    #enhancers = []
-    #for enhancer_path in associated_enhancer_paths:
-    #    enhancers = enhancers + extract_enhancers(working_directory, enhancer_path, gene_id, chromosome)
-    #regions = regions + dedup_regions(enhancers)
-
-    #arrange(variants, regions)
-
-#    stats = {
-#        'lncRNA': 0
-#    }
-    #features = {}
-    #biotypes = {}
-    #print(non_coding_rnas[0])
-    #for rna in non_coding_rnas:
-    #    print(rna['start'], rna['end'])
-    #    if rna['biotype'] not in biotypes:
-    #        biotypes[rna['biotype']] = 0
-    #    biotypes[rna['biotype']] = biotypes[rna['biotype']] + 1
-    #
-    #    if rna['feature_type'] not in features:
-    #        features[rna['feature_type']] = 0
-    #    features[rna['feature_type']] = features[rna['feature_type']] + 1
 
 main()
 
