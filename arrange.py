@@ -28,6 +28,8 @@ def sync_databases(working_directory, file_name, url, unzip):
     if path.exists(f'./{working_directory}/{file_name}') == False:
         local_filename = file_name
         local_filepath = f'./{working_directory}/{local_filename}'
+        if unzip:
+            local_filepath = local_filepath + ".gz"
 
         wget.download(url, local_filepath)
 
@@ -56,39 +58,18 @@ def db_cache(file_name, callback, callback_params):
             outfile.write(json_str)
         return data
 
-def plot_variant_frequencies(frequencies_dict):
+def plot_bar_chart(frequencies_dict, xlabel, ylabel, title, filename):
     keys = list(frequencies_dict.keys())
-    #x = ['Nuclear', 'Hydro', 'Gas', 'Oil', 'Coal', 'Biofuel']
-    values = list(frequencies_dict.values)
-    #energy = [5, 6, 15, 22, 24, 8]
-    #variance = [1, 2, 7, 4, 2, 3]
+    values = list(frequencies_dict.values())
 
-    keys_pos = [i for i, _ in enumerate(keys)]
-
-    plt.bar(keys_pos, values, color='green') #, yerr=variance)
-    plt.xlabel('Value')
-    plt.ylabel('Frequency')
-    plt.title('Frequency of Variants per Genomic Region')
-
-    #plt.xticks(x_pos, x)
-
-    plt.savefig('variant_frequencies.png')
-
-def plot_overlapping_variants():
-    d = [0,2,4,5,6,1,2,41,23]
-    # An "interface" to matplotlib.axes.Axes.hist() method
-    n, bins, patches = plt.hist(x=d, bins='auto', color='#0504aa',
-                                alpha=0.7, rwidth=0.85)
-    plt.grid(axis='y', alpha=0.75)
-    plt.xlabel('Value')
-    plt.ylabel('Frequency')
-    plt.title('My Very Own Histogram')
-    plt.text(23, 45, r'$\mu=15, b=3$')
-    maxfreq = n.max()
-    # Set a clean upper y-axis limit.
-    #plt.ylim(ymax=np.ceil(maxfreq / 10) * 10 if maxfreq % 10 else maxfreq + 10)
-    plt.savefig('unique_variant_region_overlap.png')
-
+    plt.figure(figsize=(15, 15))
+    plt.bar(keys, values, color='green') #, yerr=variance)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.xticks(rotation = 45)
+    
+    plt.savefig(filename, dpi=100)
 
 def count_regional_variant_frequencies(regions, variants):
     regional_frequencies = {}
@@ -207,25 +188,36 @@ def query_dbvar(gene_name, condition):
     query_url = f'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=dbvar&term=%28{gene_name}%5BGene%20Name%5D%29%&retmax={retmax}&retmode=json'
     return query_ncbi(query_url)
 
-def get_clinvar_entry(id, condition):
+def get_clinvar_entry(id, chromosome, condition):
     query_url = f'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=clinvar&rettype=vcv&is_variationid&id={id}&from_esearch=true&retmode=json'
     res = requests.get(query_url)
     content = extract_content(res, 'xml')
     variants = []
 
     try:
+        #print(content)
+        
+        version = content['ClinVarResult-Set']['VariationArchive']['@VariationName']
         record = content['ClinVarResult-Set']['VariationArchive']['InterpretedRecord']
         trait_name = record['TraitMappingList']['TraitMapping']['MedGen']['@Name']
         locations = record['SimpleAllele']['Location']['SequenceLocation']
 
         for location in locations:
             if condition in trait_name:
-                variants.append({
-                    'start': int(location['@start']),
-                    'stop': int(location['@stop']),
-                    'reference_allele': location['@referenceAlleleVCF'],
-                    'alternate_allele': location['@alternateAlleleVCF']
-                })
+                if 'GRCh37/hg19' in version:
+                    variants.append({
+                        'start': convert_coordinate(chromosome, int(location['@start'])),
+                        'stop': convert_coordinate(chromosome, int(location['@stop'])),
+                        'reference_allele': location['@referenceAlleleVCF'],
+                        'alternate_allele': location['@alternateAlleleVCF']
+                    })
+                else:
+                    variants.append({
+                        'start': int(location['@start']),
+                        'stop': int(location['@stop']),
+                        'reference_allele': location['@referenceAlleleVCF'],
+                        'alternate_allele': location['@alternateAlleleVCF']
+                    })
             else:
                 print(condition)
                 print(trait_name)
@@ -574,11 +566,11 @@ def generate_structure(sequence):
     pass
 
 def get_ncbi_clinical_variants(params):
-    gene_name, condition = params
+    gene_name, chromosome, condition = params
     variants = []
     clinical_variants = query_clinvar(gene_name, False)
     for clinical_variant in clinical_variants:
-        variant_coordinates = get_clinvar_entry(clinical_variant, condition)
+        variant_coordinates = get_clinvar_entry(clinical_variant, chromosome, condition)
         variants = variants + variant_coordinates
     return variants
 
@@ -664,7 +656,7 @@ def main():
     sync_databases(working_directory, 'human-circdb.hg19.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
     sync_databases(working_directory, 'insulators-experimental.hg19.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
     sync_databases(working_directory, 'insulators-computational.hg19.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
-
+    
     ensemble_cds_metadata = db_cache(f'./{working_directory}/ensembl.json', get_ensembl_data, [gene_name])
 
     gene_id = ensemble_cds_metadata['id']
@@ -675,7 +667,7 @@ def main():
     gwas_snps = db_cache(f'./{working_directory}/gwas_variants.json', query_gwas, [gene_name, condition])
     variants = variants + gwas_snps
 
-    ncbi_clinical_variants = db_cache(f'./{working_directory}/clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
+    ncbi_clinical_variants = db_cache(f'./{working_directory}/clinical_variants.json', get_ncbi_clinical_variants, [gene_name, chromosome, condition])
     variants = variants + ncbi_clinical_variants
 
     regions = []
@@ -688,7 +680,6 @@ def main():
     regions = regions + sno_rnas
 
     features = extract_genecode_features(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
-    print(features)
     regions = regions + features
 
     promoters = extract_promoters(f'./{working_directory}/Hs_EPDnew.bed', gene_name)
@@ -708,20 +699,21 @@ def main():
         enhancers = enhancers + extract_enhancers(working_directory, enhancer_path, gene_id, chromosome)
     regions = regions + dedup_regions(enhancers)
 
-    unique_regions = []
+    #unique_regions = []
 
-    for region in regions:
-        if region['type'] not in unique_regions:
-            unique_regions.append(region['type'])
-    print(unique_regions)
-
-    #regional_frequencies, unique_variant_regions = count_regional_variant_frequencies(regions, variants)
-    #print(regional_frequencies)
+    #for region in regions:
+    #    if region['type'] not in unique_regions:
+    #        unique_regions.append(region['type'])
+    #print(unique_regions)
+    
+    regional_frequencies, unique_variant_regions = count_regional_variant_frequencies(regions, variants)
+    print(regional_frequencies)
     #print(unique_variant_regions)
 
     #write_regions_to_gff3(gene_name, chromosome, regions)
 
-    #plot_variant_frequencies()
+    plot_bar_chart(regional_frequencies, 'Regions', 'Region Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png')
+    plot_bar_chart(unique_variant_regions, 'Variants', 'Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_variants.png')
     #plot_overlapping_variants()
 
 main()
