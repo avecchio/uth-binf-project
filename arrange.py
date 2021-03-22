@@ -72,37 +72,60 @@ def plot_bar_chart(frequencies_dict, xlabel, ylabel, title, filename):
     plt.savefig(filename, dpi=100)
 
 def count_regional_variant_frequencies(regions, variants):
-    rnas = {}
-    regional_frequencies = {}
     unique_variant_regions = {}
+    regional_frequencies = {}
+
+    print(len(regions))
     for variant in variants:
-        counter = []
+        counter = 0
         for region in regions:
-            if 'type' not in region:
-                print(region)
-            if region['type'] not in regional_frequencies:
-                regional_frequencies[region['type']] = 0
             after_start = region['start'] <= variant['start'] or region['start'] <= variant['stop']
             before_end = region['end'] >= variant['start'] or region['start'] >= variant['stop']
             if after_start and before_end:
-                regional_frequencies[region['type']] += 1
-                if region['type'] not in counter:
-                    counter.append(region['type'])
-            if 'rna' in region['type'].lower():
-                if region['identifier'] not in rnas:
-                    rnas[region['identifier']] = {
-                        'region': region,
-                        'variants': []
-                    }
-                rnas[region['identifier']]['variants'].append(variant)
+                counter += 1
+        if str(counter) not in unique_variant_regions:
+            unique_variant_regions[str(counter)] = 0
+        unique_variant_regions[str(counter)] += 1
+            
 
+    for region in regions:
+        if region['type'] not in regional_frequencies:
+            regional_frequencies[region['type']] = {}
+        if region['identifier'] not in regional_frequencies[region['type']]:
+            regional_frequencies[region['type']][region['identifier']] = {
+                'region': region,
+                'variants': []
+            }
+        for variant in variants:
+            after_start = region['start'] <= variant['start'] or region['start'] <= variant['stop']
+            before_end = region['end'] >= variant['start'] or region['start'] >= variant['stop']
+            if after_start and before_end:
+                regional_frequencies[region['type']][region['identifier']]['variants'].append(variant)
 
+    return regional_frequencies, unique_variant_regions
 
-        unique_variant_region = len(counter)
-        if str(unique_variant_region) not in unique_variant_regions:
-            unique_variant_regions[str(unique_variant_region)] = 0
-        unique_variant_regions[str(unique_variant_region)] += 1
-    return regional_frequencies, unique_variant_regions, rnas
+    #unique_variant_regions = {}
+    #regional_frequencies = {}
+    
+    #for variant in variants:
+    #    counter = []
+    #    for region in regions:
+    #        if 'type' not in region:
+    #            print(region)
+    #        if region['type'] not in regional_frequencies:
+    #            regional_frequencies[region['type']] = 0
+    #        #print(region)
+    #        after_start = region['start'] <= variant['start'] or region['start'] <= variant['stop']
+    #        before_end = region['end'] >= variant['start'] or region['start'] >= variant['stop']
+    #        if after_start and before_end:
+    #            regional_frequencies[region['type']] += 1
+    #            if region['type'] not in counter:
+    #                counter.append(region['type'])
+    #    unique_variant_region = len(counter)
+    #    if str(unique_variant_region) not in unique_variant_regions:
+    #        unique_variant_regions[str(unique_variant_region)] = 0
+    #    unique_variant_regions[str(unique_variant_region)] += 1
+    #return regional_frequencies, unique_variant_regions
 
 def convert_coordinate(chromosome, coordinate):
     converter = get_lifter('hg19', 'hg38')
@@ -698,20 +721,18 @@ def main():
     #        unique_regions.append(region['type'])
     #print(unique_regions)
     
-    regional_frequencies, unique_variant_regions, rnas = count_regional_variant_frequencies(regions, variants)
-    total = 0
-    for rna in rnas:
-        variants = rnas[rna]['variants']
-        print(len(variants))
-        total += len(variants)
-    print('------------')
-    print(total)
-    #print(unique_variant_regions)
-    print(regional_frequencies)
+    regional_frequencies, unique_variant_regions = count_regional_variant_frequencies(regions, variants)
 
     #write_regions_to_gff3(gene_name, chromosome, regions)
 
-    plot_bar_chart(regional_frequencies, 'Regions', 'Region Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png')
+    regional_frequency_counts = {}
+    for region_type in regional_frequencies:
+        if region_type not in regional_frequency_counts:
+            regional_frequency_counts[region_type] = 0
+        counts = len(regional_frequencies[region_type].keys())
+        regional_frequency_counts[region_type] += counts
+
+    plot_bar_chart(regional_frequency_counts, 'Regions', 'Region Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png')
     plot_bar_chart(unique_variant_regions, 'Variants', 'Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_variants.png')
     #plot_overlapping_variants()
 
