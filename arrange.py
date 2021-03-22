@@ -729,8 +729,9 @@ def main():
     for region_type in regional_frequencies:
         if region_type not in regional_frequency_counts:
             regional_frequency_counts[region_type] = 0
-        counts = len(regional_frequencies[region_type].keys())
-        regional_frequency_counts[region_type] += counts
+        for key in list(regional_frequencies[region_type].keys()):
+            counts = len(regional_frequencies[region_type][key]['variants'])
+            regional_frequency_counts[region_type] += counts
 
     plot_bar_chart(regional_frequency_counts, 'Regions', 'Region Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png')
     plot_bar_chart(unique_variant_regions, 'Variants', 'Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_variants.png')
