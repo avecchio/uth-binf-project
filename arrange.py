@@ -72,6 +72,7 @@ def plot_bar_chart(frequencies_dict, xlabel, ylabel, title, filename):
     plt.savefig(filename, dpi=100)
 
 def count_regional_variant_frequencies(regions, variants):
+    rnas = {}
     regional_frequencies = {}
     unique_variant_regions = {}
     for variant in variants:
@@ -81,18 +82,27 @@ def count_regional_variant_frequencies(regions, variants):
                 print(region)
             if region['type'] not in regional_frequencies:
                 regional_frequencies[region['type']] = 0
-            #print(region)
             after_start = region['start'] <= variant['start'] or region['start'] <= variant['stop']
             before_end = region['end'] >= variant['start'] or region['start'] >= variant['stop']
             if after_start and before_end:
                 regional_frequencies[region['type']] += 1
                 if region['type'] not in counter:
                     counter.append(region['type'])
+            if 'rna' in region['type'].lower():
+                if region['identifier'] not in rnas:
+                    rnas[region['identifier']] = {
+                        'region': region,
+                        'variants': []
+                    }
+                rnas[region['identifier']]['variants'].append(variant)
+
+
+
         unique_variant_region = len(counter)
         if str(unique_variant_region) not in unique_variant_regions:
             unique_variant_regions[str(unique_variant_region)] = 0
         unique_variant_regions[str(unique_variant_region)] += 1
-    return regional_frequencies, unique_variant_regions
+    return regional_frequencies, unique_variant_regions, rnas
 
 def convert_coordinate(chromosome, coordinate):
     converter = get_lifter('hg19', 'hg38')
@@ -167,26 +177,10 @@ def query_gwas(params):
                 })
     return associated_snps
 
-def query_ncbi(query_url, restype):
-    response = requests.get(query_url)
-    content = extract_content(response, restype)
-    ids = extract_id_results(content)
-    return ids
-
-def query_dbsnp(gene_name, is_test):
-    retmax = 20 if is_test == True else 100000 
-    query_url = f'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=snp&term={gene_name}&retmax={retmax}&retmode=json'
-    return query_ncbi(query_url, 'json')
-
 def query_clinvar(gene_name, is_test):
     retmax = 20 if is_test == True else 100000 
     query_url = f'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=clinvar&term={gene_name}&retmax={retmax}&retmode=json'
     return query_ncbi(query_url, 'json')
-
-def query_dbvar(gene_name, condition):
-    retmax = 20 if is_test == True else 100000 
-    query_url = f'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=dbvar&term=%28{gene_name}%5BGene%20Name%5D%29%&retmax={retmax}&retmode=json'
-    return query_ncbi(query_url)
 
 def get_clinvar_entry(id, chromosome, condition):
     query_url = f'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=clinvar&rettype=vcv&is_variationid&id={id}&from_esearch=true&retmode=json'
@@ -194,9 +188,7 @@ def get_clinvar_entry(id, chromosome, condition):
     content = extract_content(res, 'xml')
     variants = []
 
-    try:
-        #print(content)
-        
+    try:        
         version = content['ClinVarResult-Set']['VariationArchive']['@VariationName']
         record = content['ClinVarResult-Set']['VariationArchive']['InterpretedRecord']
         trait_name = record['TraitMappingList']['TraitMapping']['MedGen']['@Name']
@@ -706,9 +698,16 @@ def main():
     #        unique_regions.append(region['type'])
     #print(unique_regions)
     
-    regional_frequencies, unique_variant_regions = count_regional_variant_frequencies(regions, variants)
-    print(regional_frequencies)
+    regional_frequencies, unique_variant_regions, rnas = count_regional_variant_frequencies(regions, variants)
+    total = 0
+    for rna in rnas:
+        variants = rnas[rna]['variants']
+        print(len(variants))
+        total += len(variants)
+    print('------------')
+    print(total)
     #print(unique_variant_regions)
+    print(regional_frequencies)
 
     #write_regions_to_gff3(gene_name, chromosome, regions)
 
