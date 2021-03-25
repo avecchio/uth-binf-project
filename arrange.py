@@ -654,6 +654,45 @@ def write_regions_to_gff3(gene_name, chromosome, regions):
         file1.write(gff3_contents) 
         file1.close()
 
+
+def get_sequence_from_ensembl(chromosome, start, end):
+    server = "https://rest.ensembl.org"
+    ext = f"/sequence/region/human/{chromosome}:{start}..{end}:1?coord_system_version=GRCh38"
+    
+    r = requests.get(server+ext, headers={ "Content-Type" : "text/x-fasta"})
+    return r.text
+
+def dna_to_rna(dna):
+    return dna.replace("T", "U")
+
+def generate_rna_structure(identifier, rna_type, rna):
+    is_circular = " -c " if rna_type == "circularRNA" else ""
+    os.system(f'RNAfold {is_circular}')
+
+def generate_structural_variants(chromosome, regions):
+    rna_regions = regions
+    for rna_region in rna_regions:
+
+        rna_identifier = rna_region['region']['identifier']
+        rna_start = rna_region['region']['start']
+        rna_end = rna_region['region']['end']
+        rna_type = rna_region['region']['type']
+
+        dna = get_sequence_from_ensembl(chromosome, start, end)
+        rna = dna_to_rna(dna)
+        generate_rna_structure(identifier, rna_type, rna)
+
+#                        'start': convert_coordinate(chromosome, int(location['@start'])),
+#                        'stop': convert_coordinate(chromosome, int(location['@stop'])),
+#                        'reference_allele': location['@referenceAlleleVCF'],
+#                        'alternate_allele': location['@alternateAlleleVCF']
+
+        for variant in rna_region['variants']:
+
+            modified_dna = dna #[variant] = variant['']
+            rna = dna_to_rna(dna)
+            generate_rna_structure(identifier, rna_type, rna)
+
 def main():
     working_directory = 'work'
     gene_name = 'FTO'
@@ -713,13 +752,6 @@ def main():
     for enhancer_path in associated_enhancer_paths:
         enhancers = enhancers + extract_enhancers(working_directory, enhancer_path, gene_id, chromosome)
     regions = regions + dedup_regions(enhancers)
-
-    #unique_regions = []
-
-    #for region in regions:
-    #    if region['type'] not in unique_regions:
-    #        unique_regions.append(region['type'])
-    #print(unique_regions)
     
     regional_frequencies, unique_variant_regions = count_regional_variant_frequencies(regions, variants)
 
@@ -735,10 +767,8 @@ def main():
 
     plot_bar_chart(regional_frequency_counts, 'Regions', 'Region Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png')
     plot_bar_chart(unique_variant_regions, 'Variants', 'Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_variants.png')
-    #plot_overlapping_variants()
 
-main()
-
+#main()
 
 
 
