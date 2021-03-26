@@ -104,42 +104,9 @@ def count_regional_variant_frequencies(regions, variants):
 
     return regional_frequencies, unique_variant_regions
 
-    #unique_variant_regions = {}
-    #regional_frequencies = {}
-    
-    #for variant in variants:
-    #    counter = []
-    #    for region in regions:
-    #        if 'type' not in region:
-    #            print(region)
-    #        if region['type'] not in regional_frequencies:
-    #            regional_frequencies[region['type']] = 0
-    #        #print(region)
-    #        after_start = region['start'] <= variant['start'] or region['start'] <= variant['stop']
-    #        before_end = region['end'] >= variant['start'] or region['start'] >= variant['stop']
-    #        if after_start and before_end:
-    #            regional_frequencies[region['type']] += 1
-    #            if region['type'] not in counter:
-    #                counter.append(region['type'])
-    #    unique_variant_region = len(counter)
-    #    if str(unique_variant_region) not in unique_variant_regions:
-    #        unique_variant_regions[str(unique_variant_region)] = 0
-    #    unique_variant_regions[str(unique_variant_region)] += 1
-    #return regional_frequencies, unique_variant_regions
-
 def convert_coordinate(chromosome, coordinate):
     converter = get_lifter('hg19', 'hg38')
     return converter[chromosome][coordinate][0][1]
-
-def construct_rna_variants(start, rna, variants):
-    rnas = [rna]
-    for variant in variants:
-        s = rna[variant['coordinate'] - start] = variant['mutation']
-        rnas.append(s)
-    return rnas
-
-def extract_id_results(content):
-    return content['esearchresult']['idlist']
 
 def extract_content(response, restype):
     if response.status_code != 200:
@@ -150,12 +117,6 @@ def extract_content(response, restype):
             return json.loads(response.text)
         else:
             return xmltodict.parse(response.text)
-
-def generate_rna_structure(rna):
-    os.system(f'')
-
-def extract_rna_features(structural_path):
-    os.system(f'')
 
 def is_gwas_snp_associated(snpid, condition):
     study_url = f'https://www.ebi.ac.uk/gwas/rest/api/singleNucleotidePolymorphisms/{snpid}/studies'
@@ -514,7 +475,7 @@ def extract_non_coding_rnas(non_coding_rnas):
         rna_regions.append()
     return rna_regions
 
-def extract_sno_rnas(file_path, gene_name):
+def extract_sno_rnas(file_path, chromosome, gene_name):
     rnas = []
     with open(file_path) as fp:
         lines = fp.readlines()
@@ -535,10 +496,6 @@ def extract_sno_rnas(file_path, gene_name):
 
 def extract_genecode_features(file_path, ensembl_gene_id):
     features = []
-    exon_counter = 0
-    five_utr = 0
-    three_utr = 0
-    transcript = 0
     with open(file_path) as fp:
         lines = fp.readlines()
         for line in lines:
@@ -554,14 +511,6 @@ def extract_genecode_features(file_path, ensembl_gene_id):
                 
                 is_type = (biotype in ['exon', 'CDS', 'three_prime_UTR', 'five_prime_UTR', 'transcript'])
                 if is_type and (ensembl_gene_id in gene_id):
-                    if (biotype == 'exon'):
-                        exon_counter = exon_counter + 1
-                    elif biotype == 'three_prime_UTR':
-                        three_utr = three_utr + 1
-                    elif biotype == 'five_prime_UTR':
-                        five_utr = five_utr + 1
-                    elif biotype == 'transcript':
-                        transcript = transcript + 1
                     features.append({
                         'identifier': identifier,
                         'start': int(start),
@@ -571,14 +520,6 @@ def extract_genecode_features(file_path, ensembl_gene_id):
 
     return features
 
-def extract_sequence(dna, start, end):
-    pass
-
-def mutate_sequence(sequence, pos, mutation):
-    pass
-
-def generate_structure(sequence):
-    pass
 
 def get_ncbi_clinical_variants(params):
     gene_name, chromosome, condition = params
@@ -669,6 +610,29 @@ def generate_rna_structure(identifier, rna_type, rna):
     is_circular = " -c " if rna_type == "circularRNA" else ""
     os.system(f'RNAfold {is_circular}')
 
+def calculate_random_chance_statistics(regions):
+    total_number_of_variants = 0
+    regional_length = 0
+    affected_regional_length = 0
+
+    for region in regoins:
+        rna_start = rna_region['region']['start']
+        rna_end = rna_region['region']['end']
+        rna_length = end - start + 1
+        regional_length += rna_length
+
+        variants = rna_region['variants']
+        number_of_variants = len(variants)
+        if number_of_variants > 0:
+            total_number_of_variants += number_of_variants
+            affected_regional_length += rna_length
+
+    expected_variants_in_region = total_number_of_variants / regional_length
+    expected_variants_in_affected_regions = total_number_of_variants / affected_regional_length
+
+    return expected_variants_in_region, expected_variants_in_affected_regions
+
+
 def generate_structural_variants(chromosome, regions):
     rna_regions = regions
     for rna_region in rna_regions:
@@ -730,7 +694,7 @@ def main():
     filtered_nc_rnas = filter_nc_rnas(chromosome, nc_rnas)
     regions = regions + filtered_nc_rnas
 
-    sno_rnas = extract_sno_rnas(f'./{working_directory}/Supplementary_Dataset_S5.gff', gene_name)
+    sno_rnas = extract_sno_rnas(f'./{working_directory}/Supplementary_Dataset_S5.gff', chromosome, gene_name)
     regions = regions + sno_rnas
 
     features = extract_genecode_features(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
