@@ -8,13 +8,14 @@ import gzip
 import psycopg2
 import datetime
 import matplotlib.pyplot as plt
-from liftover import get_lifter
 import liftover
 import shutil
 import urllib.request as reques        
 import os.path
 import wget
 
+from liftover import get_lifter
+from Bio import SeqIO
 from contextlib import closing
 from os import path
 
@@ -632,6 +633,22 @@ def calculate_random_chance_statistics(regions):
 
     return expected_variants_in_region, expected_variants_in_affected_regions
 
+
+def delete_sequence(dna, start, end):
+    before = dna[0:start]
+    after = dna[end+1:]
+    return before + after
+
+def insert_sequence(dna, start, end, sequence):
+    before = dna[0:start+1]
+    after = dna[end-1:]
+    return before + sequence + after
+
+def modify_sequence(dna, start, sequence):
+    end = start + len(sequence)
+    before = dna[0:start]
+    after = dna[end:]
+    return before + sequence + after
 
 def generate_structural_variants(chromosome, regions):
     rna_regions = regions
