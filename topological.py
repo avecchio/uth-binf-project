@@ -185,21 +185,29 @@ def get_clinvar_entry(id, chromosome, condition):
     content = extract_content(res, 'xml')
     variants = []
 
+    record = content['ClinVarResult-Set']['VariationArchive']['InterpretedRecord']
     try:        
-        record = content['ClinVarResult-Set']['VariationArchive']['InterpretedRecord']
         if 'TraitMappingList' in record:
-            trait_name = record['TraitMappingList']['TraitMapping']['MedGen']['@Name']
+            is_condition = False
+            traits = record['TraitMappingList']['TraitMapping']
+            if type(traits).__name__ == 'list':
+                for trait in traits:
+                    trait_name = trait['MedGen']['@Name']
+                    is_condition = is_condition or condition in trait_name
+            else:
+                trait_name = traits['MedGen']['@Name']
+                is_condition = is_condition or condition in trait_name
             locations = record['SimpleAllele']['Location']['SequenceLocation']
 
-            for location in locations:
-                if condition in trait_name:
-                    if location['@Assembly'] == 'GRCh38':
-                        variants.append({
-                            'start': int(location['@start']),
-                            'stop': int(location['@stop']),
-                            'reference_allele': location['@referenceAlleleVCF'],
-                            'alternate_allele': location['@alternateAlleleVCF']
-                        })
+            if is_condition:
+                for location in locations:                
+                        if location['@Assembly'] == 'GRCh38':
+                            variants.append({
+                                'start': int(location['@start']),
+                                'stop': int(location['@stop']),
+                                'reference_allele': location['@referenceAlleleVCF'],
+                                'alternate_allele': location['@alternateAlleleVCF']
+                            })
     except Exception as e:
         print(e)
         print('-----------------')
