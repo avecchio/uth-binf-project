@@ -165,6 +165,15 @@ def query_gwas(params):
                 })
     return associated_snps
 
+def extract_id_results(content):
+    return content['esearchresult']['idlist']
+
+def query_ncbi(query_url, restype):
+    response = requests.get(query_url)
+    content = extract_content(response, restype)
+    ids = extract_id_results(content)
+    return ids
+
 def query_clinvar(gene_name, is_test):
     retmax = 20 if is_test == True else 100000 
     query_url = f'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=clinvar&term={gene_name}&retmax={retmax}&retmode=json'
@@ -177,28 +186,23 @@ def get_clinvar_entry(id, chromosome, condition):
     variants = []
 
     try:        
-        version = content['ClinVarResult-Set']['VariationArchive']['@VariationName']
         record = content['ClinVarResult-Set']['VariationArchive']['InterpretedRecord']
-        # sometimes traitmappinglist is an array. Must look into further
-        # AssemblyStatus = "current"
-        trait_name = record['TraitMappingList']['TraitMapping']['MedGen']['@Name']
-        locations = record['SimpleAllele']['Location']['SequenceLocation']
+        if 'TraitMappingList' in record:
+            trait_name = record['TraitMappingList']['TraitMapping']['MedGen']['@Name']
+            locations = record['SimpleAllele']['Location']['SequenceLocation']
 
-        for location in locations:
-            if condition in trait_name:
-                if 'GRCh38' in version:
-                    variants.append({
-                        'start': int(location['@start']),
-                        'stop': int(location['@stop']),
-                        'reference_allele': location['@referenceAlleleVCF'],
-                        'alternate_allele': location['@alternateAlleleVCF']
-                    })
-            else:
-                print(condition)
-                print(trait_name)
-                print('--------------')
-    except:
-        print('error')
+            for location in locations:
+                if condition in trait_name:
+                    if location['@Assembly'] == 'GRCh38':
+                        variants.append({
+                            'start': int(location['@start']),
+                            'stop': int(location['@stop']),
+                            'reference_allele': location['@referenceAlleleVCF'],
+                            'alternate_allele': location['@alternateAlleleVCF']
+                        })
+    except Exception as e:
+        print(e)
+        print('-----------------')
     return variants
 
 
@@ -508,7 +512,7 @@ def extract_genecode_features(file_path, ensembl_gene_id):
                 identifier = information[0]
                 gene_id = information[2]
                 
-                is_type = (biotype in ['exon', 'CDS', 'three_prime_UTR', 'five_prime_UTR', 'transcript'])
+                is_type = (biotype in ['exon', 'three_prime_UTR', 'five_prime_UTR'])
                 if is_type and (ensembl_gene_id in gene_id):
                     features.append({
                         'identifier': identifier,
@@ -612,6 +616,7 @@ def generate_rna_structure(identifier, rna_type, rna):
     is_circular = " -c " if rna_type == "circularRNA" else ""
 
     os.system(f'RNAfold {is_circular} {fasta_name} > out.dbn')
+    os.system('perl bpRNA.pl ')
 
 def calculate_random_chance_statistics(regions):
     total_number_of_variants = 0
@@ -685,6 +690,15 @@ def main():
 
     condition = 'Growth retardation'
 
+    ensemble_cds_metadata = db_cache(f'./{working_directory}/ensembl.json', get_ensembl_data, [gene_name])
+
+    gene_id = ensemble_cds_metadata['id']
+    region_name = ensemble_cds_metadata['seq_region_name']
+    chromosome = f'chr{region_name}'
+
+    vars = get_ncbi_clinical_variants([gene_name, chromosome, condition])
+    print(len(vars))
+
     code = '''
     associated_enhancer_paths = sync_gene_enhancers(working_directory)
     sync_databases(working_directory, 'Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
@@ -694,12 +708,6 @@ def main():
     sync_databases(working_directory, 'human-circdb.hg19.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
     sync_databases(working_directory, 'insulators-experimental.hg19.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
     sync_databases(working_directory, 'insulators-computational.hg19.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
-    
-    ensemble_cds_metadata = db_cache(f'./{working_directory}/ensembl.json', get_ensembl_data, [gene_name])
-
-    gene_id = ensemble_cds_metadata['id']
-    region_name = ensemble_cds_metadata['seq_region_name']
-    chromosome = f'chr{region_name}'
 
     variants = []
     gwas_snps = db_cache(f'./{working_directory}/gwas_variants.json', query_gwas, [gene_name, condition])
@@ -752,7 +760,7 @@ def main():
     plot_bar_chart(regional_frequency_counts, 'Regions', 'Region Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png')
     plot_bar_chart(unique_variant_regions, 'Variants', 'Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_variants.png')
     '''
-#main()
+main()
 
 
 
