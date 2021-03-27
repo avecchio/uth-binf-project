@@ -25,6 +25,9 @@ def make_working_directory(directory):
     except OSError as e:
         pass
 
+def combinations():
+    return list(combinations(range(4)))
+
 def sync_databases(working_directory, file_name, url, unzip):
     if path.exists(f'./{working_directory}/{file_name}') == False:
         local_filename = file_name
@@ -176,19 +179,14 @@ def get_clinvar_entry(id, chromosome, condition):
     try:        
         version = content['ClinVarResult-Set']['VariationArchive']['@VariationName']
         record = content['ClinVarResult-Set']['VariationArchive']['InterpretedRecord']
+        # sometimes traitmappinglist is an array. Must look into further
+        # AssemblyStatus = "current"
         trait_name = record['TraitMappingList']['TraitMapping']['MedGen']['@Name']
         locations = record['SimpleAllele']['Location']['SequenceLocation']
 
         for location in locations:
             if condition in trait_name:
-                if 'GRCh37/hg19' in version:
-                    variants.append({
-                        'start': convert_coordinate(chromosome, int(location['@start'])),
-                        'stop': convert_coordinate(chromosome, int(location['@stop'])),
-                        'reference_allele': location['@referenceAlleleVCF'],
-                        'alternate_allele': location['@alternateAlleleVCF']
-                    })
-                else:
+                if 'GRCh38' in version:
                     variants.append({
                         'start': int(location['@start']),
                         'stop': int(location['@stop']),
@@ -608,8 +606,12 @@ def dna_to_rna(dna):
     return dna.replace("T", "U")
 
 def generate_rna_structure(identifier, rna_type, rna):
+    fasta_name = ""
+    with open(fasta_name, "w") as output_handle:
+        SeqIO.write(sequences, output_handle, "fasta")
     is_circular = " -c " if rna_type == "circularRNA" else ""
-    os.system(f'RNAfold {is_circular}')
+
+    os.system(f'RNAfold {is_circular} {fasta_name} > out.dbn')
 
 def calculate_random_chance_statistics(regions):
     total_number_of_variants = 0
@@ -634,6 +636,8 @@ def calculate_random_chance_statistics(regions):
     return expected_variants_in_region, expected_variants_in_affected_regions
 
 
+# these are zero based. Should be -1 to all coordinates
+# will need to restructure these and to account for all variants
 def delete_sequence(dna, start, end):
     before = dna[0:start]
     after = dna[end+1:]
@@ -653,15 +657,14 @@ def modify_sequence(dna, start, sequence):
 def generate_structural_variants(chromosome, regions):
     rna_regions = regions
     for rna_region in rna_regions:
-
         rna_identifier = rna_region['region']['identifier']
         rna_start = rna_region['region']['start']
         rna_end = rna_region['region']['end']
         rna_type = rna_region['region']['type']
 
-        dna = get_sequence_from_ensembl(chromosome, start, end)
-        rna = dna_to_rna(dna)
-        generate_rna_structure(identifier, rna_type, rna)
+        #dna = get_sequence_from_ensembl(chromosome, start, end)
+        #rna = dna_to_rna(dna)
+        #generate_rna_structure(identifier, rna_type, rna)
 
 #                        'start': convert_coordinate(chromosome, int(location['@start'])),
 #                        'stop': convert_coordinate(chromosome, int(location['@stop'])),
@@ -682,7 +685,7 @@ def main():
 
     condition = 'Growth retardation'
 
-
+    code = '''
     associated_enhancer_paths = sync_gene_enhancers(working_directory)
     sync_databases(working_directory, 'Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
    
@@ -748,7 +751,7 @@ def main():
 
     plot_bar_chart(regional_frequency_counts, 'Regions', 'Region Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png')
     plot_bar_chart(unique_variant_regions, 'Variants', 'Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_variants.png')
-
+    '''
 #main()
 
 
