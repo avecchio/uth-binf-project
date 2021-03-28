@@ -181,14 +181,6 @@ def get_clinvar_entry(id, condition):
         print('-----------------')
     return variants
 
-
-def get_dbsnp_coords(id):
-    query_url = f'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=snp&id={id}&rettype=json&retmode=text'
-    res = requests.get(query_url)
-    content = extract_content(res)
-    snapshot_data = content['primary_snapshot_data']
-    print(snapshot_data)
-
 def pg_query(conn_string, sql_query):
     try:
         print('connecting')
@@ -482,7 +474,6 @@ def extract_genecode_features(file_path, ensembl_gene_id):
                 gene_id = information[2]
                 
                 is_type = (biotype in ['transcript', 'exon', 'three_prime_UTR', 'five_prime_UTR'])
-                print(biotype, is_type)
                 if is_type and (ensembl_gene_id in gene_id):
                     features.append({
                         'identifier': identifier,
@@ -570,7 +561,7 @@ def write_regions_to_gff3(gene_name, chromosome, regions):
 
 def get_intron_counts(regions):
     intron_count = regions['transcript']
-    for region_type in ['exon', 'three_prime_UTR', 'five_prime_UTR']
+    for region_type in ['exon', 'three_prime_UTR', 'five_prime_UTR']:
         intron_count = intron_count - regions[region_type]
     del regions['transcript']
     return regions
@@ -703,16 +694,19 @@ def count_statistical_regional_variant_frequencies(regions, variants):
         regions_impacted = []
         counter = 0
         for region in regions:
+            if region['type'] not in variant_regions:
+                variant_regions[region['type']] = 0
             after_start = region['start'] <= variant['start'] or region['start'] <= variant['stop']
             before_end = region['end'] >= variant['start'] or region['start'] >= variant['stop']
             if after_start and before_end:
+                region_type = region['type']
                 if region_type not in regions_impacted:
-                    regions_impacted.append(region['type'])  
+                    regions_impacted.append(region_type)  
         num_regions_impacted = len(regions_impacted)
         if num_regions_impacted > 0:
             frequency_score = 1 / num_regions_impacted
             for region in regions_impacted:
-                regions_impacted[region] += frequency_score
+                variant_regions[region] += frequency_score
     
     return variant_regions
 
@@ -727,11 +721,9 @@ def double_bar_chart(regional_frequencies, expected_regional_frequencies):
     ax = fig.add_subplot(111)
 
     yvals =  regional_frequency_values # [4, 9, 2]
-    rects1 = ax.bar(ind, yvals, width, color='r')
+    rects1 = ax.bar(ind, yvals, width, color='b')
     zvals = list(expected_regional_frequencies.values()) # [1,2,3]
     rects2 = ax.bar(ind+width, zvals, width, color='g')
-    #kvals = [11,12,13]
-    #rects3 = ax.bar(ind+width*2, kvals, width, color='b')
 
     ax.set_ylabel('Scores')
     ax.set_xticks(ind+width)
@@ -746,9 +738,10 @@ def double_bar_chart(regional_frequencies, expected_regional_frequencies):
 
     autolabel(rects1)
     autolabel(rects2)
-    #autolabel(rects3)
 
-    plt.show()
+    plt.xticks(rotation = 45)
+    
+    plt.savefig('expected_actual_distribution.png', dpi=100)
 
 def main():
     working_directory = 'data'
@@ -778,7 +771,7 @@ def main():
     gwas_snps = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_gwas_variants.json', query_gwas, [gene_name, condition])
     variants = variants + gwas_snps
 
-    ncbi_clinical_variants = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_clinical_variants.json', get_ncbi_clinical_variants, [gene_name, chromosome, condition])
+    ncbi_clinical_variants = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
     variants = variants + ncbi_clinical_variants
 
     regions = []
@@ -822,7 +815,18 @@ def main():
     for region in region_type_lengths:
         variant_region_expected_frequencies[region] = region_type_lengths[region] / total_lengths
 
-    #plot_bar_chart(regional_frequency_counts, 'Regions', 'Region Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png')
-    #plot_bar_chart(unique_variant_regions, 'Variants', 'Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_variants.png')
-    #double_bar_chart(variant_regions, variant_region_expected_frequencies)
+    regional_frequency_counts = {}
+    for region_type in regional_frequencies:
+        if region_type not in regional_frequency_counts:
+            regional_frequency_counts[region_type] = 0
+        for key in list(regional_frequencies[region_type].keys()):
+            counts = len(regional_frequencies[region_type][key]['variants'])
+            regional_frequency_counts[region_type] += counts
+
+    print(regional_frequency_counts)
+    print('-------------')
+    print(unique_variant_regions)
+    plot_bar_chart(regional_frequency_counts, 'Regions', 'Region Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png')
+    plot_bar_chart(unique_variant_regions, 'Variants', 'Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_variants.png')
+    double_bar_chart(variant_regions, variant_region_expected_frequencies)
 main()
