@@ -13,6 +13,7 @@ import shutil
 import urllib.request as reques        
 import os.path
 import wget
+import numpy as np
 
 from liftover import get_lifter
 from Bio import SeqIO
@@ -74,39 +75,6 @@ def plot_bar_chart(frequencies_dict, xlabel, ylabel, title, filename):
     plt.xticks(rotation = 45)
     
     plt.savefig(filename, dpi=100)
-
-def count_regional_variant_frequencies(regions, variants):
-    unique_variant_regions = {}
-    regional_frequencies = {}
-
-    print(len(regions))
-    for variant in variants:
-        counter = 0
-        for region in regions:
-            after_start = region['start'] <= variant['start'] or region['start'] <= variant['stop']
-            before_end = region['end'] >= variant['start'] or region['start'] >= variant['stop']
-            if after_start and before_end:
-                counter += 1
-        if str(counter) not in unique_variant_regions:
-            unique_variant_regions[str(counter)] = 0
-        unique_variant_regions[str(counter)] += 1
-            
-
-    for region in regions:
-        if region['type'] not in regional_frequencies:
-            regional_frequencies[region['type']] = {}
-        if region['identifier'] not in regional_frequencies[region['type']]:
-            regional_frequencies[region['type']][region['identifier']] = {
-                'region': region,
-                'variants': []
-            }
-        for variant in variants:
-            after_start = region['start'] <= variant['start'] or region['start'] <= variant['stop']
-            before_end = region['end'] >= variant['start'] or region['start'] >= variant['stop']
-            if after_start and before_end:
-                regional_frequencies[region['type']][region['identifier']]['variants'].append(variant)
-
-    return regional_frequencies, unique_variant_regions
 
 def convert_coordinate(chromosome, coordinate):
     converter = get_lifter('hg19', 'hg38')
@@ -179,7 +147,7 @@ def query_clinvar(gene_name, is_test):
     query_url = f'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=clinvar&term={gene_name}&retmax={retmax}&retmode=json'
     return query_ncbi(query_url, 'json')
 
-def get_clinvar_entry(id, chromosome, condition):
+def get_clinvar_entry(id, condition):
     query_url = f'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=clinvar&rettype=vcv&is_variationid&id={id}&from_esearch=true&retmode=json'
     res = requests.get(query_url)
     content = extract_content(res, 'xml')
@@ -311,13 +279,6 @@ def query_rnacentral(params):
         "description": x[17],
         "rna_type": x[18]}
     for x in results]
-
-
-def is_locale(gene_start, gene_end, start, end, strand):
-    if strand == "+":
-        return int(gene_start)<int(start) and int(end)<int(gene_end)
-    else:
-        return int(gene_start)<int(start) and int(end)<int(gene_end)
 
 def get_ensembl_data(params):
     gene_name = params[0]
@@ -520,7 +481,8 @@ def extract_genecode_features(file_path, ensembl_gene_id):
                 identifier = information[0]
                 gene_id = information[2]
                 
-                is_type = (biotype in ['exon', 'three_prime_UTR', 'five_prime_UTR'])
+                is_type = (biotype in ['transcript', 'exon', 'three_prime_UTR', 'five_prime_UTR'])
+                print(biotype, is_type)
                 if is_type and (ensembl_gene_id in gene_id):
                     features.append({
                         'identifier': identifier,
@@ -533,11 +495,11 @@ def extract_genecode_features(file_path, ensembl_gene_id):
 
 
 def get_ncbi_clinical_variants(params):
-    gene_name, chromosome, condition = params
+    gene_name, condition = params
     variants = []
     clinical_variants = query_clinvar(gene_name, False)
     for clinical_variant in clinical_variants:
-        variant_coordinates = get_clinvar_entry(clinical_variant, chromosome, condition)
+        variant_coordinates = get_clinvar_entry(clinical_variant, condition)
         variants = variants + variant_coordinates
     return variants
 
@@ -606,6 +568,12 @@ def write_regions_to_gff3(gene_name, chromosome, regions):
         file1.write(gff3_contents) 
         file1.close()
 
+def get_intron_counts(regions):
+    intron_count = regions['transcript']
+    for region_type in ['exon', 'three_prime_UTR', 'five_prime_UTR']
+        intron_count = intron_count - regions[region_type]
+    del regions['transcript']
+    return regions
 
 def get_sequence_from_ensembl(chromosome, start, end):
     server = "https://rest.ensembl.org"
@@ -690,24 +658,113 @@ def generate_structural_variants(chromosome, regions):
             rna = dna_to_rna(dna)
             generate_rna_structure(identifier, rna_type, rna)
 
+def count_overlapping_variant_frequencies(regions, variants):
+    unique_variant_regions = {}
+    for variant in variants:
+        counter = 0
+        for region in regions:
+            after_start = region['start'] <= variant['start'] or region['start'] <= variant['stop']
+            before_end = region['end'] >= variant['start'] or region['start'] >= variant['stop']
+            if after_start and before_end:
+                counter += 1
+        if str(counter) not in unique_variant_regions:
+            unique_variant_regions[str(counter)] = 0
+        unique_variant_regions[str(counter)] += 1
+    
+    return unique_variant_regions
+
+def count_emperical_regional_variant_frequencies(regions, variants):
+    regional_frequencies = {}            
+    region_type_lengths = {}
+
+    for region in regions:
+        if region['type'] not in regional_frequencies:
+            regional_frequencies[region['type']] = {}
+        if region['identifier'] not in regional_frequencies[region['type']]:
+            regional_frequencies[region['type']][region['identifier']] = {
+                'region': region,
+                'variants': []
+            }
+        if region['type'] not in region_type_lengths:
+            region_type_lengths[region['type']] = 0
+        region_type_lengths[region['type']] += abs(region['end'] - region['start']) + 1
+
+        for variant in variants:
+            after_start = region['start'] <= variant['start'] or region['start'] <= variant['stop']
+            before_end = region['end'] >= variant['start'] or region['start'] >= variant['stop']
+            if after_start and before_end:
+                regional_frequencies[region['type']][region['identifier']]['variants'].append(variant)
+
+    return regional_frequencies, region_type_lengths
+
+def count_statistical_regional_variant_frequencies(regions, variants):
+    variant_regions = {}
+    for variant in variants:
+        regions_impacted = []
+        counter = 0
+        for region in regions:
+            after_start = region['start'] <= variant['start'] or region['start'] <= variant['stop']
+            before_end = region['end'] >= variant['start'] or region['start'] >= variant['stop']
+            if after_start and before_end:
+                if region_type not in regions_impacted:
+                    regions_impacted.append(region['type'])  
+        num_regions_impacted = len(regions_impacted)
+        if num_regions_impacted > 0:
+            frequency_score = 1 / num_regions_impacted
+            for region in regions_impacted:
+                regions_impacted[region] += frequency_score
+    
+    return variant_regions
+
+def double_bar_chart(regional_frequencies, expected_regional_frequencies):
+
+    regional_frequency_values = list(regional_frequencies.values())
+    N = len(regional_frequency_values)
+    ind = np.arange(N)  # the x locations for the groups
+    width = 0.27       # the width of the bars
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    yvals =  regional_frequency_values # [4, 9, 2]
+    rects1 = ax.bar(ind, yvals, width, color='r')
+    zvals = list(expected_regional_frequencies.values()) # [1,2,3]
+    rects2 = ax.bar(ind+width, zvals, width, color='g')
+    #kvals = [11,12,13]
+    #rects3 = ax.bar(ind+width*2, kvals, width, color='b')
+
+    ax.set_ylabel('Scores')
+    ax.set_xticks(ind+width)
+    ax.set_xticklabels( list(regional_frequencies.keys()) )
+    ax.legend( (rects1[0], rects2[0]), ('y', 'z') )
+
+    def autolabel(rects):
+        for rect in rects:
+            h = rect.get_height()
+            ax.text(rect.get_x()+rect.get_width()/2., 1.05*h, '%d'%int(h),
+                    ha='center', va='bottom')
+
+    autolabel(rects1)
+    autolabel(rects2)
+    #autolabel(rects3)
+
+    plt.show()
+
 def main():
-    working_directory = 'work'
+    working_directory = 'data'
     gene_name = 'FTO'
 
     make_working_directory(working_directory)
 
     condition = 'Growth retardation'
 
-    ensemble_cds_metadata = db_cache(f'./{working_directory}/ensembl.json', get_ensembl_data, [gene_name])
+    condition_filename = '_'.join(condition.split(" "))
+    ensemble_cds_metadata = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_ensembl.json', get_ensembl_data, [gene_name])
 
     gene_id = ensemble_cds_metadata['id']
     region_name = ensemble_cds_metadata['seq_region_name']
     chromosome = f'chr{region_name}'
 
-    vars = get_ncbi_clinical_variants([gene_name, chromosome, condition])
-    print(len(vars))
-
-    code = '''
     associated_enhancer_paths = sync_gene_enhancers(working_directory)
     sync_databases(working_directory, 'Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
    
@@ -718,15 +775,15 @@ def main():
     sync_databases(working_directory, 'insulators-computational.hg19.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
     variants = []
-    gwas_snps = db_cache(f'./{working_directory}/gwas_variants.json', query_gwas, [gene_name, condition])
+    gwas_snps = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_gwas_variants.json', query_gwas, [gene_name, condition])
     variants = variants + gwas_snps
 
-    ncbi_clinical_variants = db_cache(f'./{working_directory}/clinical_variants.json', get_ncbi_clinical_variants, [gene_name, chromosome, condition])
+    ncbi_clinical_variants = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_clinical_variants.json', get_ncbi_clinical_variants, [gene_name, chromosome, condition])
     variants = variants + ncbi_clinical_variants
 
     regions = []
 
-    nc_rnas = db_cache(f'./{working_directory}/rna_central.json', query_rnacentral, [gene_name])
+    nc_rnas = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_rna_central.json', query_rnacentral, [gene_name])
     filtered_nc_rnas = filter_nc_rnas(chromosome, nc_rnas)
     regions = regions + filtered_nc_rnas
 
@@ -753,23 +810,19 @@ def main():
         enhancers = enhancers + extract_enhancers(working_directory, enhancer_path, gene_id, chromosome)
     regions = regions + dedup_regions(enhancers)
     
-    regional_frequencies, unique_variant_regions = count_regional_variant_frequencies(regions, variants)
+
+    unique_variant_regions = count_overlapping_variant_frequencies(regions, variants)
+    regional_frequencies, region_type_lengths = count_emperical_regional_variant_frequencies(regions, variants)
+    variant_regions = count_statistical_regional_variant_frequencies(regions, variants)
 
     #write_regions_to_gff3(gene_name, chromosome, regions)
 
-    regional_frequency_counts = {}
-    for region_type in regional_frequencies:
-        if region_type not in regional_frequency_counts:
-            regional_frequency_counts[region_type] = 0
-        for key in list(regional_frequencies[region_type].keys()):
-            counts = len(regional_frequencies[region_type][key]['variants'])
-            regional_frequency_counts[region_type] += counts
+    variant_region_expected_frequencies = {}
+    total_lengths = sum(list(region_type_lengths.values()))
+    for region in region_type_lengths:
+        variant_region_expected_frequencies[region] = region_type_lengths[region] / total_lengths
 
-    plot_bar_chart(regional_frequency_counts, 'Regions', 'Region Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png')
-    plot_bar_chart(unique_variant_regions, 'Variants', 'Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_variants.png')
-    '''
+    #plot_bar_chart(regional_frequency_counts, 'Regions', 'Region Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png')
+    #plot_bar_chart(unique_variant_regions, 'Variants', 'Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_variants.png')
+    #double_bar_chart(variant_regions, variant_region_expected_frequencies)
 main()
-
-
-
-
