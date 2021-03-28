@@ -813,7 +813,8 @@ def main():
     variant_region_expected_frequencies = {}
     total_lengths = sum(list(region_type_lengths.values()))
     for region in region_type_lengths:
-        variant_region_expected_frequencies[region] = region_type_lengths[region] / total_lengths
+        length_proportion = region_type_lengths[region] / total_lengths
+        variant_region_expected_frequencies[region] = len(variants) * length_proportion
 
     regional_frequency_counts = {}
     for region_type in regional_frequencies:
