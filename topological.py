@@ -685,9 +685,9 @@ def count_emperical_regional_variant_frequencies(regions, variants):
         region_type_lengths[region['type']] += abs(region['end'] - region['start']) + 1
 
         for variant in variants:
-            after_start = region['start'] <= variant['start'] or region['start'] <= variant['stop']
-            before_end = region['end'] >= variant['start'] or region['start'] >= variant['stop']
-            if after_start and before_end:
+            after_start = region['start'] <= variant['start'] and region['end'] >= variant['start']
+            before_end = region['start'] <= variant['stop'] and region['end'] >= variant['stop']
+            if after_start or before_end:
                 regional_frequencies[region['type']][region['identifier']]['variants'].append(variant)
 
     return regional_frequencies, region_type_lengths
@@ -718,15 +718,15 @@ def double_bar_chart(regional_frequencies, expected_regional_frequencies):
 
     regional_frequency_values = list(regional_frequencies.values())
     N = len(regional_frequency_values)
-    ind = np.arange(N)  # the x locations for the groups
-    width = 0.27       # the width of the bars
+    ind = np.arange(N)
+    width = 0.27
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
-    yvals =  regional_frequency_values # [4, 9, 2]
+    yvals =  regional_frequency_values
     rects1 = ax.bar(ind, yvals, width, color='b')
-    zvals = list(expected_regional_frequencies.values()) # [1,2,3]
+    zvals = list(expected_regional_frequencies.values())
     rects2 = ax.bar(ind+width, zvals, width, color='g')
 
     ax.set_ylabel('Scores')
