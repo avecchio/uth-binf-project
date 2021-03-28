@@ -654,9 +654,9 @@ def count_overlapping_variant_frequencies(regions, variants):
     for variant in variants:
         counter = 0
         for region in regions:
-            after_start = region['start'] <= variant['start'] or region['start'] <= variant['stop']
-            before_end = region['end'] >= variant['start'] or region['start'] >= variant['stop']
-            if after_start and before_end:
+            after_start = region['start'] <= variant['start'] and region['end'] >= variant['start']
+            before_end = region['start'] >= variant['stop'] and region['end'] >= variant['stop']
+            if after_start or before_end:
                 counter += 1
         if str(counter) not in unique_variant_regions:
             unique_variant_regions[str(counter)] = 0
@@ -696,9 +696,9 @@ def count_statistical_regional_variant_frequencies(regions, variants):
         for region in regions:
             if region['type'] not in variant_regions:
                 variant_regions[region['type']] = 0
-            after_start = region['start'] <= variant['start'] or region['start'] <= variant['stop']
-            before_end = region['end'] >= variant['start'] or region['start'] >= variant['stop']
-            if after_start and before_end:
+            after_start = region['start'] <= variant['start'] and region['end'] >= variant['start']
+            before_end = region['start'] >= variant['stop'] and region['end'] >= variant['stop']
+            if after_start or before_end:
                 region_type = region['type']
                 if region_type not in regions_impacted:
                     regions_impacted.append(region_type)  
@@ -728,7 +728,7 @@ def double_bar_chart(regional_frequencies, expected_regional_frequencies):
     ax.set_ylabel('Scores')
     ax.set_xticks(ind+width)
     ax.set_xticklabels( list(regional_frequencies.keys()) )
-    ax.legend( (rects1[0], rects2[0]), ('y', 'z') )
+    ax.legend( (rects1[0], rects2[0]), ('Actual distribution', 'Expected distribution') )
 
     def autolabel(rects):
         for rect in rects:
