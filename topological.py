@@ -14,6 +14,7 @@ import urllib.request as reques
 import os.path
 import wget
 import numpy as np
+from scipy.stats import chisquare
 
 from liftover import get_lifter
 from Bio import SeqIO
@@ -747,6 +748,8 @@ def double_bar_chart(regional_frequencies, expected_regional_frequencies):
     
     plt.savefig('expected_actual_distribution.png', dpi=100)
 
+from scipy.stats import chi2_contingency
+
 def main():
     working_directory = 'data'
     gene_name = 'FTO'
@@ -834,4 +837,23 @@ def main():
     plot_bar_chart(regional_frequency_counts, 'Regions', 'Region Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png')
     plot_bar_chart(unique_variant_regions, 'Variants', 'Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_variants.png')
     double_bar_chart(variant_regions, variant_region_expected_frequencies)
+
+    print('chisquare')
+
+    chi_square_data = [
+        list(variant_regions.values()),
+        list(variant_region_expected_frequencies.values())
+    ]
+
+    stat, p, dof, expected = chi2_contingency(chi_square_data)
+    
+    # interpret p-value
+    alpha = 0.05
+    print('Stats: ' + stat)
+    print("Dof" + dof)
+    print("p value is " + str(p))
+    if p <= alpha:
+        print('Dependent (reject H0)')
+    else:
+        print('Independent (H0 holds true)')
 main()
