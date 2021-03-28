@@ -655,7 +655,7 @@ def count_overlapping_variant_frequencies(regions, variants):
         counter = 0
         for region in regions:
             after_start = region['start'] <= variant['start'] and region['end'] >= variant['start']
-            before_end = region['start'] >= variant['stop'] and region['end'] >= variant['stop']
+            before_end = region['start'] <= variant['stop'] and region['end'] >= variant['stop']
             if after_start or before_end:
                 counter += 1
         if str(counter) not in unique_variant_regions:
@@ -697,7 +697,7 @@ def count_statistical_regional_variant_frequencies(regions, variants):
             if region['type'] not in variant_regions:
                 variant_regions[region['type']] = 0
             after_start = region['start'] <= variant['start'] and region['end'] >= variant['start']
-            before_end = region['start'] >= variant['stop'] and region['end'] >= variant['stop']
+            before_end = region['start'] <= variant['stop'] and region['end'] >= variant['stop']
             if after_start or before_end:
                 region_type = region['type']
                 if region_type not in regions_impacted:
