@@ -650,6 +650,8 @@ def generate_structural_variants(chromosome, regions):
             generate_rna_structure(identifier, rna_type, rna)
 
 def count_overlapping_variant_frequencies(regions, variants):
+    print(f'regions: ' + str(len(regions)))
+    print(f'variants: ' + str(len(variants)))
     unique_variant_regions = {}
     for variant in variants:
         counter = 0
@@ -665,6 +667,8 @@ def count_overlapping_variant_frequencies(regions, variants):
     return unique_variant_regions
 
 def count_emperical_regional_variant_frequencies(regions, variants):
+    print(f'regions: ' + str(len(regions)))
+    print(f'variants: ' + str(len(variants)))
     regional_frequencies = {}            
     region_type_lengths = {}
 
