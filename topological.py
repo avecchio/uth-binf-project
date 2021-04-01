@@ -20,7 +20,27 @@ from Bio import SeqIO
 from contextlib import closing
 from os import path
 
-def make_working_directory(directory):
+
+import secrets
+
+from scipy.stats import chi2_contingency
+
+from collections import defaultdict, OrderedDict
+import warnings
+import gffutils
+import pybedtools
+import pandas as pd
+import copy
+import os
+import re
+from gffutils.pybedtools_integration import tsses
+from copy import deepcopy
+from collections import OrderedDict, Callable
+import errno
+
+
+
+def make_directory(directory):
     try:
         os.makedirs(directory)
     except OSError as e:
@@ -561,7 +581,7 @@ def write_regions_to_gff3(gene_name, chromosome, regions):
     for region in regions:
         region_type = region['type']
         region_start = region['start']
-        region_end = region['stop']
+        region_end = region['end']
         region_id = region['identifier']
         entry = f'{gene_name}_regions . {region_type} {region_start} {region_end} . + . ID={region_id};'
         entries.append(entry)
@@ -589,14 +609,23 @@ def get_sequence_from_ensembl(chromosome, start, end):
 def dna_to_rna(dna):
     return dna.replace("T", "U")
 
-def generate_rna_structure(identifier, rna_type, rna):
-    fasta_name = ""
+def generate_rna_structure(identifier, directory, rna_type, rna):
+
+    make_directory(directory)
+    tmp_path = secrets.token_hex(nbytes=16)
+    structure_path = f'{directory}/{tmp_path}'
+    make_directory(structure_path)
+
+    fasta_name = f'{structure_path}/{identifier}.fasta'
     with open(fasta_name, "w") as output_handle:
         SeqIO.write(sequences, output_handle, "fasta")
     is_circular = " -c " if rna_type == "circularRNA" else ""
 
-    os.system(f'RNAfold {is_circular} {fasta_name} > out.dbn')
-    os.system('perl bpRNA.pl ')
+    dbn_file = f'{structure_path}/{identifier}_{structure_path}.dbn'
+    st_file = dbn_file.replace(".dbn", ".st")
+    os.system(f'RNAfold {is_circular} {fasta_name} > {dbn_file}')
+    os.system(f'perl bpRNA.pl {dbn_file} ')
+    #os.system(f'mv {st_file} {structure_path}')
 
 def calculate_random_chance_statistics(regions):
     total_number_of_variants = 0
@@ -633,13 +662,16 @@ def insert_sequence(dna, start, end, sequence):
     after = dna[end-1:]
     return before + sequence + after
 
-def modify_sequence(dna, start, sequence):
+def modify_sequence(dna, start, end, sequence):
     end = start + len(sequence)
     before = dna[0:start]
     after = dna[end:]
     return before + sequence + after
 
-def generate_structural_variants(chromosome, regions):
+def mutate_dna(start, end, mutation, dna):
+    return dna[0:start-1] + mutation + dna[end+1:]
+
+def generate_structural_variants(regions):
     rna_regions = regions
     for rna_region in rna_regions:
         rna_identifier = rna_region['region']['identifier']
@@ -651,23 +683,9 @@ def generate_structural_variants(chromosome, regions):
         rna = dna_to_rna(dna)
         #generate_rna_structure(identifier, rna_type, rna)
 
-#                        'start': convert_coordinate(chromosome, int(location['@start'])),
-#                        'stop': convert_coordinate(chromosome, int(location['@stop'])),
-#                        'reference_allele': location['@referenceAlleleVCF'],
-#                        'alternate_allele': location['@alternateAlleleVCF']
-
         for variant in rna_region['variants']:
-            mutant_dna = dna
-            start = variant['start'] - region['start'] + 1
-            end = variant['end'] - region['start'] + 1
-            if len(variant['reference_allele']) == len(variant['alternate_allele']):
-                mutant_dna = modify_sequence(mutant_dna, start, variant['alternate_allele'])
-            elif len(variant['reference_allele']) > len(variant['alternate_allele']):
-                end = start + (len(variant['reference_allele']) - len(variant['alternate_allele']))
-                mutant_dna = delete(mutant_dna, start, end)
-            else:
-                mutant_dna = insert_sequence(mutant_dna, start, end, variant['alternate_allele'])
-            mutant_rna = dna_to_rna(mutant_dna)
+            mutated_dna = mutate_dna(variant['start'], variant['stop'], variant['alternate_allele'], dna)
+            mutated_rna = dna_to_rna(mutated_dna)
             #generate_rna_structure(identifier, rna_type, rna)
 
 def count_overlapping_variant_frequencies(regions, variants):
@@ -768,21 +786,6 @@ def double_bar_chart(regional_frequencies, expected_regional_frequencies):
     
     plt.savefig('expected_actual_distribution.png', dpi=100)
 
-from scipy.stats import chi2_contingency
-
-
-from collections import defaultdict, OrderedDict
-import warnings
-import gffutils
-import pybedtools
-import pandas as pd
-import copy
-import os
-import re
-from gffutils.pybedtools_integration import tsses
-from copy import deepcopy
-from collections import OrderedDict, Callable
-import errno
 
 def read_genecode_bed_file(biotype, gene, file_path):
     genecode_regions = []
@@ -806,17 +809,6 @@ def read_genecode_bed_file(biotype, gene, file_path):
                 })
         counter += 1
     return genecode_regions
-
-
-
-def mkdir_p(path):
-    try:
-        os.makedirs(path)
-    except OSError as exc:  # Python >2.5
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
-            raise
 
 def create_gene_dict(db):
     '''
@@ -918,7 +910,7 @@ def get_UTR_regions(gene_dict, gene_id, transcript, cds):
             else:
                 raise RuntimeError('Error with cds')    
     return utr5_regions, utr3_regions
-    
+
 def create_bed(regions, bedtype='0'):
     '''Create bed from list of regions
     bedtype: 0 or 1
@@ -1086,7 +1078,7 @@ def main():
     working_directory = 'data'
     gene_name = 'FTO'
 
-    make_working_directory(working_directory)
+    make_directory(working_directory)
 
     condition = 'Growth retardation'
 
@@ -1094,42 +1086,47 @@ def main():
     ensemble_cds_metadata = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_ensembl.json', get_ensembl_data, [gene_name])
 
     gene_id = ensemble_cds_metadata['id']
-    #region_name = ensemble_cds_metadata['seq_region_name']
-    #chromosome = f'chr{region_name}'
-    print(gene_id)
+    region_name = ensemble_cds_metadata['seq_region_name']
+    chromosome = f'chr{region_name}'
+    #print(gene_id)
     #associated_enhancer_paths = sync_gene_enhancers(working_directory)
     #sync_databases(working_directory, 'Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
    
     #sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)
-    gff3_file = f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3'
-    print('extracting features')
-    feature_files = extract_features(working_directory, gff3_file)
+    #gff3_file = f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3'
+    #print('extracting features')
+    #feature_files = extract_features(working_directory, gff3_file)
     #sync_databases(working_directory, 'Supplementary_Dataset_S5.gff', 'http://snoatlas.bioinf.uni-leipzig.de/Supplementary_Dataset_S5.gff', False)
     #sync_databases(working_directory, 'human-circdb.hg19.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
     #sync_databases(working_directory, 'insulators-experimental.hg19.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
     #sync_databases(working_directory, 'insulators-computational.hg19.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
-    #variants = []
-    #gwas_snps = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_gwas_variants.json', query_gwas, [gene_name, condition])
-    #variants = variants + gwas_snps
+    variants = []
+    gwas_snps = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_gwas_variants.json', query_gwas, [gene_name, condition])
+    variants = variants + gwas_snps
 
-    #ncbi_clinical_variants = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
-    #variants = variants + ncbi_clinical_variants
+    ncbi_clinical_variants = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
+    variants = variants + ncbi_clinical_variants
 
-    regions = []
+    print(len(variants))
+    for variant in variants:
+        print(variant)
+    #regions = []
 
-    introns = read_genecode_bed_file('intron', gene_id, f'./data/intron.bed')
-    regions = regions + introns
-    print("introns: " + str(len(introns)))
-    exons = read_genecode_bed_file('exon', gene_id, f'./data/exon.bed')
-    print("exons: " + str(len(exons)))
-    regions = regions + exons
-    utr_three_primes = read_genecode_bed_file('UTR3', gene_id, f'./data/utr3.bed')
-    print("three prime: " + str(utr_three_primes))
-    regions = regions + utr_three_primes
-    utr_five_primes = read_genecode_bed_file('UTR5', gene_id, f'./data/utr5.bed')
-    print("five prime: " + str(utr_five_primes))
-    regions = regions + utr_five_primes
+    #generate_structural_variants([])
+
+    #introns = read_genecode_bed_file('intron', gene_id, f'./data/intron.bed')
+    #regions = regions + introns
+    #print("introns: " + str(len(introns)))
+    #exons = read_genecode_bed_file('exon', gene_id, f'./data/exon.bed')
+    #print("exons: " + str(len(exons)))
+    #regions = regions + exons
+    #utr_three_primes = read_genecode_bed_file('UTR3', gene_id, f'./data/utr3.bed')
+    #print("three prime: " + str(utr_three_primes))
+    #regions = regions + utr_three_primes
+    #utr_five_primes = read_genecode_bed_file('UTR5', gene_id, f'./data/utr5.bed')
+    #print("five prime: " + str(utr_five_primes))
+    #regions = regions + utr_five_primes
 
 
     #nc_rnas = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_rna_central.json', query_rnacentral, [gene_name])

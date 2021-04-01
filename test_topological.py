@@ -73,3 +73,20 @@ def test_can_count():
     assert regional_frequency_results == regional_frequencies
     assert unique_variant_region_results == unique_variant_regions
 
+
+
+def mutate_dna(start, end, mutation, dna):
+    print(dna)
+    print(dna[0:start-1] + ' ' + mutation + ' ' + dna[end+1:])
+    return dna[0:start-1] + mutation + dna[end+1:]
+
+def test_mutation():
+    sequence = "AAACTTGCAAAA"
+    start = 5
+    end = 8
+    new_sequence = "T"
+    m_seq = mutate_dna(start, end, new_sequence, sequence)
+    #assert m_seq == "AAACTGC"
+    #print(m_seq)
+
+test_mutation()
