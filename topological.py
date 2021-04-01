@@ -360,7 +360,8 @@ def extract_enhancers(working_directory, file_path, gene_identifier, chromosome)
                             'identifier': f'Enhancer{counter}',
                             'start': convert_coordinate(chromosome, int(start)),
                             'end': convert_coordinate(chromosome, int(end)),
-                            'type': 'enhancer'
+                            'type': 'enhancer',
+                            'strand': '+'
                         }
             counter = counter + 1
     return list(enhancers.values())
@@ -422,7 +423,8 @@ def extract_insulators(file_path, gene_name, chromosome):
                         'identifier': identifier,
                         'start': convert_coordinate(chromosome, int(start)),
                         'end': convert_coordinate(chromosome, int(end)),
-                        'type': 'insulator'
+                        'type': 'insulator',
+                        'strand': '+'
                     })
             counter = counter + 1
     return insulators
@@ -452,11 +454,13 @@ def extract_sno_rnas(file_path, chromosome, gene_name):
                     'identifier': information[2],
                     'start': convert_coordinate(chromosome, int(start)),
                     'end': convert_coordinate(chromosome, int(end)),
-                    'type': 'snornas'
+                    'type': 'snornas',
+                    'strand': '?'
                 })
     return rnas
 
 def extract_genecode_features(file_path, ensembl_gene_id):
+    features_dict = {}
     features = []
     with open(file_path) as fp:
         lines = fp.readlines()
@@ -476,14 +480,19 @@ def extract_genecode_features(file_path, ensembl_gene_id):
                 ]
 
                 is_type = (biotype in accepted_biotypes)
-                if is_type and (ensembl_gene_id in gene_id):                    
+                if is_type and (ensembl_gene_id in gene_id):        
+                    if biotype not in features_dict:
+                        features_dict[biotype] = 0
+                    features_dict[biotype] += 1            
                     features.append({
                         'identifier': identifier,
                         'start': int(start),
                         'end': int(end),
-                        'type': biotype
+                        'type': biotype,
+                        'strand': '+'
                     })
 
+    print(features_dict)
     return features
 
 
@@ -531,14 +540,16 @@ def filter_nc_rnas(chromosome, nc_rnas):
                 'identifier': identifier,
                 'start': convert_coordinate(chromosome, int(start)),
                 'end': convert_coordinate(chromosome, int(end)),
-                'type': biotype
+                'type': biotype,
+                'strand': strand
             })
         elif assembly == 'GRCh38':
             nc_rnas_list.append({
                 'identifier': identifier,
                 'start': int(start),
                 'end': int(end),
-                'type': biotype
+                'type': biotype,
+                'strand': strand
             })
         else:
             print(f'Error: Unknown assembly type [{assembly}] for {identifier}')
@@ -773,6 +784,31 @@ from copy import deepcopy
 from collections import OrderedDict, Callable
 import errno
 
+def read_genecode_bed_file(biotype, gene, file_path):
+    genecode_regions = []
+    counter = 0
+    with open(file_path) as fp:
+        lines = fp.readlines()
+        for line in lines:
+            metadata = line.strip().split("\t")
+            start = int(metadata[1])
+            end = int(metadata[2])
+            gene_name = metadata[3]
+            strand = metadata[5]
+
+            if gene_name in gene:
+                genecode_regions.append({
+                    'identifier': f'{biotype}-{str(counter)}',
+                    'start': start,
+                    'end': end,
+                    'type': biotype,
+                    'strand': strand
+                })
+        counter += 1
+    return genecode_regions
+
+
+
 def mkdir_p(path):
     try:
         os.makedirs(path)
@@ -944,7 +980,7 @@ def create_genecode_db(gff_file):
     gene_dict = create_gene_dict(db)
     return gene_dict, db
 
-def extract_features(working_directory, gene_dict, db):
+def extract_features(working_directory, gff_file):
     data_files = [
         f'./{working_directory}/utr5.bed.gz',
         f'./{working_directory}/utr3.bed.gz',
@@ -958,6 +994,7 @@ def extract_features(working_directory, gene_dict, db):
 
 
     if existing_data == False:
+        gene_dict, db = create_genecode_db(gff_file)
         utr5_bed = ''
         utr3_bed = ''
         gene_bed = ''
@@ -1065,8 +1102,8 @@ def main():
    
     #sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)
     gff3_file = f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3'
-    gene_dict, db = create_genecode_db(gff3_file)
-    feature_files = extract_features(working_directory, gene_dict, db)
+    print('extracting features')
+    feature_files = extract_features(working_directory, gff3_file)
     #sync_databases(working_directory, 'Supplementary_Dataset_S5.gff', 'http://snoatlas.bioinf.uni-leipzig.de/Supplementary_Dataset_S5.gff', False)
     #sync_databases(working_directory, 'human-circdb.hg19.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
     #sync_databases(working_directory, 'insulators-experimental.hg19.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
@@ -1079,7 +1116,21 @@ def main():
     #ncbi_clinical_variants = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
     #variants = variants + ncbi_clinical_variants
 
-    #regions = []
+    regions = []
+
+    introns = read_genecode_bed_file('intron', gene_id, f'./data/intron.bed')
+    regions = regions + introns
+    print("introns: " + str(len(introns)))
+    exons = read_genecode_bed_file('exon', gene_id, f'./data/exon.bed')
+    print("exons: " + str(len(exons)))
+    regions = regions + exons
+    utr_three_primes = read_genecode_bed_file('UTR3', gene_id, f'./data/utr3.bed')
+    print("three prime: " + str(utr_three_primes))
+    regions = regions + utr_three_primes
+    utr_five_primes = read_genecode_bed_file('UTR5', gene_id, f'./data/utr5.bed')
+    print("five prime: " + str(utr_five_primes))
+    regions = regions + utr_five_primes
+
 
     #nc_rnas = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_rna_central.json', query_rnacentral, [gene_name])
     #filtered_nc_rnas = filter_nc_rnas(chromosome, nc_rnas)
@@ -1088,7 +1139,8 @@ def main():
     #sno_rnas = extract_sno_rnas(f'./{working_directory}/Supplementary_Dataset_S5.gff', chromosome, gene_name)
     #regions = regions + sno_rnas
 
-    #features = extract_genecode_features(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
+    features = extract_genecode_features(f'./gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
+    #print(features)
     #regions = regions + features
 
     #promoters = extract_promoters(f'./{working_directory}/Hs_EPDnew.bed', gene_name)
