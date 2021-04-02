@@ -76,11 +76,12 @@ def test_can_count():
 
 
 def mutate_dna(start, end, mutation, dna):
-    print(dna)
-    print(dna[0:start-1] + ' ' + mutation + ' ' + dna[end+1:])
-    return dna[0:start-1] + mutation + dna[end+1:]
+    if (end == start):
+        return dna[0:start-1] + mutation + dna[end:]
+    else:
+        return dna[0:start-1] + mutation + dna[end+1:]
 
-def test_mutation():
+def test_deletion_mutation():
     sequence = "AAACTTGCAAAA"
     start = 5
     end = 8
@@ -89,4 +90,22 @@ def test_mutation():
     #assert m_seq == "AAACTGC"
     #print(m_seq)
 
-test_mutation()
+def test_snp_mutation():
+    sequence = "GGG"
+    start = 2
+    end = 2
+    new_sequence = "T"
+    m_seq = mutate_dna(start, end, new_sequence, sequence)
+    print(m_seq)
+
+def test_insertion_mutation():
+    sequence = "GGG"
+    start = 2
+    end = 2
+    new_sequence = "TT"
+    m_seq = mutate_dna(start, end, new_sequence, sequence)
+    print(m_seq)
+
+test_deletion_mutation()
+test_snp_mutation()
+test_insertion_mutation()

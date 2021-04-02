@@ -13,19 +13,7 @@ import urllib.request as reques
 import os.path
 import wget
 import numpy as np
-from scipy.stats import chisquare
-
-from liftover import get_lifter
-from Bio import SeqIO
-from contextlib import closing
-from os import path
-
-
 import secrets
-
-from scipy.stats import chi2_contingency
-
-from collections import defaultdict, OrderedDict
 import warnings
 import gffutils
 import pybedtools
@@ -33,12 +21,18 @@ import pandas as pd
 import copy
 import os
 import re
+import errno
+
+from scipy.stats import chisquare
+from liftover import get_lifter
+from Bio import SeqIO
+from contextlib import closing
+from os import path
+from scipy.stats import chi2_contingency
+from collections import defaultdict, OrderedDict
 from gffutils.pybedtools_integration import tsses
 from copy import deepcopy
 from collections import OrderedDict, Callable
-import errno
-
-
 
 def make_directory(directory):
     try:
@@ -576,21 +570,24 @@ def filter_nc_rnas(chromosome, nc_rnas):
 
     return nc_rnas_list
 
-def write_regions_to_gff3(gene_name, chromosome, regions):
+def write_regions_to_bed(gene_name, chromosome, regions):
     entries = []
     for region in regions:
         region_type = region['type']
         region_start = region['start']
         region_end = region['end']
         region_id = region['identifier']
-        entry = f'{gene_name}_regions . {region_type} {region_start} {region_end} . + . ID={region_id};'
+        region_strand = region['strand']
+        entry = f'{chromosome}\t{region_start}\t{region_end}\t{region_id}\t0\t{region_strand}'
         entries.append(entry)
 
-        gff3_contents = '\n'.join(entries)
+    bed_contents = '\n'.join(entries)
 
-        file1 = open(f"{gene_name}_regions.gff3","w")
-        file1.write(gff3_contents) 
-        file1.close()
+    file_name = f"{gene_name}_regions.bed"
+    file1 = open(file_name,"w")
+    file1.write(bed_contents) 
+    file1.close()
+    return file_name
 
 def get_intron_counts(regions):
     intron_count = regions['transcript']
@@ -617,15 +614,32 @@ def generate_rna_structure(identifier, directory, rna_type, rna):
     make_directory(structure_path)
 
     fasta_name = f'{structure_path}/{identifier}.fasta'
-    with open(fasta_name, "w") as output_handle:
-        SeqIO.write(sequences, output_handle, "fasta")
+    sequence_data = {
+        'id': identifier,
+        'seq': rna
+    }
+
+    with open(fasta_name, 'w') as writer:
+        writer.write(f'>{identifier}\n')
+        writer.write(f'{rna}\n')
+
     is_circular = " -c " if rna_type == "circularRNA" else ""
 
-    dbn_file = f'{structure_path}/{identifier}_{structure_path}.dbn'
+    dbn_file = f'{structure_path}/{identifier}.dbn'
     st_file = dbn_file.replace(".dbn", ".st")
-    os.system(f'RNAfold {is_circular} {fasta_name} > {dbn_file}')
-    os.system(f'perl bpRNA.pl {dbn_file} ')
-    #os.system(f'mv {st_file} {structure_path}')
+    os.system(f'cd {structure_path} && RNAfold {is_circular} {identifier}.fasta > {identifier}.dbn')
+
+    with open(dbn_file, 'r') as reader:
+        lines = reader.readlines()
+        lines[2] = lines[2].split(" ")[0]
+        with open(dbn_file, 'w') as writer:
+            writer.write(''.join(lines))
+
+    os.system(f'cp bpRNA.pl {structure_path}')
+    os.system(f'cd {structure_path} && cpanm Graph && perl bpRNA.pl {identifier}.dbn && rm bpRNA.pl')
+    ghost_script = f'-r600 -g8112x7596'
+    os.system(f'cd {structure_path} && gs -dSAFER -dBATCH -dNOPAUSE -sDEVICE=png16m {ghost_script} -sOutputFile={identifier}.png *.ps')
+    return structure_path
 
 def calculate_random_chance_statistics(regions):
     total_number_of_variants = 0
@@ -649,27 +663,11 @@ def calculate_random_chance_statistics(regions):
 
     return expected_variants_in_region, expected_variants_in_affected_regions
 
-
-# these are zero based. Should be -1 to all coordinates
-# will need to restructure these and to account for all variants
-def delete_sequence(dna, start, end):
-    before = dna[0:start]
-    after = dna[end+1:]
-    return before + after
-
-def insert_sequence(dna, start, end, sequence):
-    before = dna[0:start+1]
-    after = dna[end-1:]
-    return before + sequence + after
-
-def modify_sequence(dna, start, end, sequence):
-    end = start + len(sequence)
-    before = dna[0:start]
-    after = dna[end:]
-    return before + sequence + after
-
 def mutate_dna(start, end, mutation, dna):
-    return dna[0:start-1] + mutation + dna[end+1:]
+    if (end == start):
+        return dna[0:start-1] + mutation + dna[end:]
+    else:
+        return dna[0:start-1] + mutation + dna[end+1:]
 
 def generate_structural_variants(regions):
     rna_regions = regions
@@ -702,6 +700,23 @@ def count_overlapping_variant_frequencies(regions, variants):
         if str(counter) not in unique_variant_regions:
             unique_variant_regions[str(counter)] = 0
         unique_variant_regions[str(counter)] += 1
+    
+    return unique_variant_regions
+
+def count_unique_variant_frequencies(regions, variants):
+    unique_variant_regions = {}
+    for variant in variants:
+        related_regions = []
+        for region in regions:
+            after_start = region['start'] <= variant['start'] and region['end'] >= variant['start']
+            before_end = region['start'] <= variant['stop'] and region['end'] >= variant['stop']
+            if after_start or before_end:
+                related_regions.append(region)
+        if len(related_regions) == 1:
+            rr = related_regions[0]
+            if rr['type'] not in unique_variant_regions:
+                unique_variant_regions[rr['type']] = []
+            unique_variant_regions[rr['type']].append(variant)
     
     return unique_variant_regions
 
@@ -1074,6 +1089,14 @@ def extract_features(working_directory, gff_file):
 
     return data_files
 
+def bed_to_indexed_bam(bed_file_name):
+    os.system(f'perl bed2sam.pl {bed_file_name}')
+    os.system(f'rm {bed_file_name}')
+    file_name = bed_file_name.replace(".bed", "")
+    os.system(f'samtools view -S -b {file_name}.sam > {file_name}.bam')
+    os.system(f'rm {file_name}.sam')
+    os.system(f'samtools index {file_name}.bam')
+
 def main():
     working_directory = 'data'
     gene_name = 'FTO'
@@ -1111,7 +1134,7 @@ def main():
     print(len(variants))
     for variant in variants:
         print(variant)
-    #regions = []
+    regions = []
 
     #generate_structural_variants([])
 
@@ -1138,7 +1161,7 @@ def main():
 
     features = extract_genecode_features(f'./gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
     #print(features)
-    #regions = regions + features
+    regions = regions + features
 
     #promoters = extract_promoters(f'./{working_directory}/Hs_EPDnew.bed', gene_name)
     #regions = regions + promoters
@@ -1146,8 +1169,8 @@ def main():
     #circular_rnas = extract_circular_rnas(f'./{working_directory}/human-circdb.hg19.txt', gene_name, chromosome)
     #regions = regions + dedup_regions(circular_rnas)
 
-    #computational_insulators = extract_insulators(f'./{working_directory}/insulators-computational.hg19.txt', gene_name, chromosome)
-    #regions = regions + dedup_regions(computational_insulators)
+    # computational_insulators = extract_insulators(f'./{working_directory}/insulators-computational.hg19.txt', gene_name, chromosome)
+    # regions = regions + dedup_regions(computational_insulators)
 
     #experimental_insulators = extract_insulators(f'./{working_directory}/insulators-experimental.hg19.txt', gene_name, chromosome)
     #regions = regions + dedup_regions(experimental_insulators)
@@ -1162,7 +1185,8 @@ def main():
     #regional_frequencies, region_type_lengths = count_emperical_regional_variant_frequencies(regions, variants)
     #variant_regions = count_statistical_regional_variant_frequencies(regions, variants)
 
-    #write_regions_to_gff3(gene_name, chromosome, regions)
+    bed_file_name = write_regions_to_bed(gene_name, chromosome, regions)
+    bed_to_indexed_bam(bed_file_name)
 
     #variant_region_expected_frequencies = {}
     #total_lengths = sum(list(region_type_lengths.values()))
@@ -1200,4 +1224,6 @@ def main():
     #    print('Dependent (reject H0)')
     #else:
     #    print('Independent (H0 holds true)')
-main()
+#main()
+sequence = 'UAUCAGUUAUAUGACUGACGGAACGUGGAAUUAACCACAUGAAGUAUAACGAUGACAAUGCCGACCGUCUGGGCG'
+generate_rna_structure('asdfasdf', 'temp_dir', 'circularRNA', sequence)
