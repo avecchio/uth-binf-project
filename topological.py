@@ -460,23 +460,23 @@ def extract_sno_rnas(file_path, chromosome, gene_name):
     rnas = []
     with open(file_path) as fp:
         lines = fp.readlines()
-        for line in lines:
+        for line in lines[1:]:
             metadata = line.split("\t")
-            information = metadata[8].strip()[1:-2].split(",")
-            start = metadata[3]
-            end = metadata[4]
-            host_gene = information[4].split(":")[1]
+            start = metadata[4]
+            end = metadata[5]
+            strand = metadata[6]
+            host_gene = metadata[20]
             if gene_name in host_gene:
                 rnas.append({
                     'identifier': information[2],
                     'start': convert_coordinate(chromosome, int(start)),
                     'end': convert_coordinate(chromosome, int(end)),
-                    'type': 'snornas',
-                    'strand': '?'
+                    'type': 'snorna',
+                    'strand': strand
                 })
     return rnas
 
-def extract_genecode_untranslated_regions(file_path, ensembl_gene_id):
+def extract_genecode_regions(file_path, ensembl_gene_id):
     features_dict = {}
     features = []
     with open(file_path) as fp:
@@ -493,7 +493,7 @@ def extract_genecode_untranslated_regions(file_path, ensembl_gene_id):
                 gene_id = information[2]
                 
                 accepted_biotypes = [
-                    'three_prime_UTR', 'five_prime_UTR',
+                    'CDS', 'three_prime_UTR', 'five_prime_UTR',
                 ]
 
                 is_type = (biotype in accepted_biotypes)
@@ -702,8 +702,6 @@ def generate_structural_variants(regions):
             #generate_rna_structure(identifier, rna_type, rna)
 
 def count_overlapping_variant_frequencies(regions, variants):
-    #print(f'regions: ' + str(len(regions)))
-    #print(f'variants: ' + str(len(variants)))
     unique_variant_regions = {}
     for variant in variants:
         counter = 0
@@ -817,25 +815,27 @@ def double_bar_chart(regional_frequencies, expected_regional_frequencies):
     plt.savefig('expected_actual_distribution.png', dpi=100)
 
 
-def read_genecode_bed_file(biotype, gene, file_path):
+def read_bed_file(biotype, gene_chromosome, gene_start, gene_end, file_path):
     genecode_regions = []
     counter = 0
     with open(file_path) as fp:
         lines = fp.readlines()
         for line in lines:
             metadata = line.strip().split("\t")
+            chromosome = metadata[0]
+
             start = int(metadata[1])
             end = int(metadata[2])
-            gene_name = metadata[3]
-            strand = metadata[5]
+            #gene_name = metadata[3]
+            #strand = metadata[5]
 
-            if gene_name in gene:
+            if start >= gene_start and end <= gene_end and chromosome == gene_chromosome:
                 genecode_regions.append({
                     'identifier': f'{biotype}-{str(counter)}',
                     'start': start,
                     'end': end,
                     'type': biotype,
-                    'strand': strand
+                    'strand': '?'
                 })
         counter += 1
     return genecode_regions
@@ -863,17 +863,21 @@ def main():
     print(gene_id)
     region_name = ensemble_cds_metadata['seq_region_name']
     chromosome = f'chr{region_name}'
+    gene_start = ensemble_cds_metadata['start']
+    gene_end = ensemble_cds_metadata['end']
+    #print(ensemble_cds_metadata)
     #print(gene_id)
     #associated_enhancer_paths = sync_gene_enhancers(working_directory)
     #sync_databases(working_directory, 'Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
-   
-    sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)
-    get_exons_and_introns_from_genecode(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', working_directory)
-    #extract_genecode_untranslated_regions
+    
+    #sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)
+    #exon_bed_path, intron_bed_path = get_exons_and_introns_from_genecode(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', working_directory)
+    #extract_genecode_regions
     #gff3_file = f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3'
     #print('extracting features')
     #feature_files = extract_features(working_directory, gff3_file)
-    #sync_databases(working_directory, 'Supplementary_Dataset_S5.gff', 'http://snoatlas.bioinf.uni-leipzig.de/Supplementary_Dataset_S5.gff', False)
+    
+    sync_databases(working_directory, 'snodb.tsv', 'http://scottgroup.med.usherbrooke.ca/snoDB/csv', False)
     #sync_databases(working_directory, 'human-circdb.hg19.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
 
     #sync_databases(working_directory, 'insulators-experimental.hg19.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
@@ -889,7 +893,7 @@ def main():
     #print(len(variants))
     #for variant in variants:
     #    print(variant)
-    #regions = []
+    regions = []
 
     #generate_structural_variants([])
 
@@ -907,28 +911,28 @@ def main():
     #regions = regions + utr_five_primes
 
 
-    #nc_rnas = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_rna_central.json', query_rnacentral, [gene_name])
-    #filtered_nc_rnas = filter_nc_rnas(chromosome, nc_rnas)
+    nc_rnas = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_rna_central.json', query_rnacentral, [gene_name])
+    filtered_nc_rnas = filter_nc_rnas(chromosome, nc_rnas)
     #regions = regions + filtered_nc_rnas
 
-    #sno_rnas = extract_sno_rnas(f'./{working_directory}/Supplementary_Dataset_S5.gff', chromosome, gene_name)
-    #regions = regions + sno_rnas
+    sno_rnas = extract_sno_rnas(f'./{working_directory}/snodb.tsv', chromosome, gene_name)
+    regions = += dedup_regions( sno_rnas + filter_nc_rnas )
 
-    #features = extract_genecode_features(f'./gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
-    #print(features)
-    #regions = regions + features
+    #features = extract_genecode_regions(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
+    #regions += features
+
+    #exons = read_bed_file('exon', chromosome, gene_start, gene_end, exon_bed_path)
+    #introns = read_bed_file('intron', chromosome, gene_start, gene_end, intron_bed_path)
+    #regions += introns
 
     #promoters = extract_promoters(f'./{working_directory}/Hs_EPDnew.bed', gene_name)
-    #regions = regions + promoters
+    #regions += promoters
 
     #circular_rnas = extract_circular_rnas(f'./{working_directory}/human-circdb.hg19.txt', gene_name, chromosome)
-    # chr16	53907697	53922863	+	hsa_circ_0005941	15166	344	Hs68_RNase, Hs68_control, Nhek, K562, Hepg2, Helas3, H1hesc, Gm12878, Bj, Ag04450, A549, Sknshra	None	ANNOTATED, CDS, coding, INTERNAL, OVCODE, OVEXON	NM_001080432	FTO	Jeck2013, Salzman2013
+    #regions += dedup_regions(circular_rnas)
 
-    #print(circular_rnas)
-    #print(len(circular_rnas))
-    #regions = regions + dedup_regions(circular_rnas)
-    # computational_insulators = extract_insulators(f'./{working_directory}/insulators-computational.hg19.txt', gene_name, chromosome)
-    # regions = regions + dedup_regions(computational_insulators)
+    #computational_insulators = extract_insulators(f'./{working_directory}/insulators-computational.hg19.txt', gene_name, chromosome)
+    #regions += dedup_regions(computational_insulators)
 
     #experimental_insulators = extract_insulators(f'./{working_directory}/insulators-experimental.hg19.txt', gene_name, chromosome)
     #regions = regions + dedup_regions(experimental_insulators)
@@ -936,9 +940,8 @@ def main():
     #enhancers = []
     #for enhancer_path in associated_enhancer_paths:
     #    enhancers = enhancers + extract_enhancers(working_directory, enhancer_path, gene_id, chromosome)
-    #regions = regions + dedup_regions(enhancers)
+    #regions += dedup_regions(enhancers)
     
-
     #unique_variant_regions = count_overlapping_variant_frequencies(regions, variants)
     #regional_frequencies, region_type_lengths = count_emperical_regional_variant_frequencies(regions, variants)
     #variant_regions = count_statistical_regional_variant_frequencies(regions, variants)
