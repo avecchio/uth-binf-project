@@ -341,6 +341,9 @@ def extract_circular_rnas(file_path, gene_name, chromosome):
                 strand = entry[3]
                 identifier = entry[4]
                 if entry[11] == gene_name:
+                    print('=======================')
+                    print(start, end)
+                    print(convert_coordinate(chromosome, int(start)), convert_coordinate(chromosome, int(end)))
                     circular_rnas.append({
                         'identifier': identifier,
                         'start': convert_coordinate(chromosome, int(start)),
@@ -473,7 +476,7 @@ def extract_sno_rnas(file_path, chromosome, gene_name):
                 })
     return rnas
 
-def extract_genecode_features(file_path, ensembl_gene_id):
+def extract_genecode_untranslated_regions(file_path, ensembl_gene_id):
     features_dict = {}
     features = []
     with open(file_path) as fp:
@@ -490,7 +493,7 @@ def extract_genecode_features(file_path, ensembl_gene_id):
                 gene_id = information[2]
                 
                 accepted_biotypes = [
-                    'exon', 'three_prime_UTR', 'five_prime_UTR',
+                    'three_prime_UTR', 'five_prime_UTR',
                 ]
 
                 is_type = (biotype in accepted_biotypes)
@@ -509,6 +512,16 @@ def extract_genecode_features(file_path, ensembl_gene_id):
     print(features_dict)
     return features
 
+def awk_extract(feature_type):
+    return 'awk \'BEGIN{OFS="\t";} $3=="' + feature_type + '" {print $1,$4-1,$5}\''
+
+def get_exons_and_introns_from_genecode(genecode_path, working_directory):
+    print(genecode_path)
+    os.system(f'cat {genecode_path} | {awk_extract("exon")} | bedtools sort | bedtools merge -i - | gzip > genecode_exon_merged.bed.gz')
+    os.system(f'cat {genecode_path} | {awk_extract("gene")} | bedtools sort | bedtools subtract -a stdin -b genecode_exon_merged.bed.gz | gzip > genecode_introns.bed.gz')
+    os.system(f'gzip -d genecode_exon_merged.bed.gz > genecode_exon_merged.bed && mv genecode_exon_merged.bed {working_directory}')
+    os.system(f'gzip -d genecode_introns.bed.gz > genecode_introns.bed && mv genecode_introns.bed {working_directory}')
+    return f'{working_directory}/genecode_exon_merged.bed', f'{working_directory}/genecode_introns.bed'
 
 def get_ncbi_clinical_variants(params):
     gene_name, condition = params
@@ -672,23 +685,25 @@ def mutate_dna(start, end, mutation, dna):
 def generate_structural_variants(regions):
     rna_regions = regions
     for rna_region in rna_regions:
+        print(rna_region['region'])
         rna_identifier = rna_region['region']['identifier']
         rna_start = rna_region['region']['start']
         rna_end = rna_region['region']['end']
         rna_type = rna_region['region']['type']
 
         dna = get_sequence_from_ensembl(chromosome, start, end)
-        rna = dna_to_rna(dna)
+        print(dna)
+        #rna = dna_to_rna(dna)
         #generate_rna_structure(identifier, rna_type, rna)
 
-        for variant in rna_region['variants']:
-            mutated_dna = mutate_dna(variant['start'], variant['stop'], variant['alternate_allele'], dna)
-            mutated_rna = dna_to_rna(mutated_dna)
+        #for variant in rna_region['variants']:
+        #    mutated_dna = mutate_dna(variant['start'], variant['stop'], variant['alternate_allele'], dna)
+        #    mutated_rna = dna_to_rna(mutated_dna)
             #generate_rna_structure(identifier, rna_type, rna)
 
 def count_overlapping_variant_frequencies(regions, variants):
-    print(f'regions: ' + str(len(regions)))
-    print(f'variants: ' + str(len(variants)))
+    #print(f'regions: ' + str(len(regions)))
+    #print(f'variants: ' + str(len(variants)))
     unique_variant_regions = {}
     for variant in variants:
         counter = 0
@@ -825,270 +840,6 @@ def read_genecode_bed_file(biotype, gene, file_path):
         counter += 1
     return genecode_regions
 
-def create_gene_dict(db):
-    '''
-    Store each feature line db.all_features() as a dict of dicts
-    '''
-    gene_dict = DefaultOrderedDict(lambda: DefaultOrderedDict(lambda: DefaultOrderedDict(list)))
-    for line_no, feature in enumerate(db.all_features()):
-        gene_ids = feature.attributes['gene_id']
-        feature_type = feature.featuretype
-        if feature_type == 'gene':
-            if len(gene_ids)!=1:
-                logging.warning('Found multiple gene_ids on line {} in gtf'.format(line_no))
-                break
-            else:
-                gene_id = gene_ids[0]
-                gene_dict[gene_id]['gene'] = feature
-        else:
-            transcript_ids = feature.attributes['transcript_id']
-
-            for gene_id in gene_ids:
-                for transcript_id in transcript_ids:
-                    gene_dict[gene_id][transcript_id][feature_type].append(feature)
-    return gene_dict
-
-class DefaultOrderedDict(OrderedDict):
-    # Source: http://stackoverflow.com/a/6190500/562769
-    def __init__(self, default_factory=None, *a, **kw):
-        if (default_factory is not None and
-           not isinstance(default_factory, Callable)):
-            raise TypeError('first argument must be callable')
-        OrderedDict.__init__(self, *a, **kw)
-        self.default_factory = default_factory
-
-    def __getitem__(self, key):
-        try:
-            return OrderedDict.__getitem__(self, key)
-        except KeyError:
-            return self.__missing__(key)
-
-    def __missing__(self, key):
-        if self.default_factory is None:
-            raise KeyError(key)
-        self[key] = value = self.default_factory()
-        return value
-
-    def __reduce__(self):
-        if self.default_factory is None:
-            args = tuple()
-        else:
-            args = self.default_factory,
-        return type(self), args, None, None, self.items()
-
-    def copy(self):
-        return self.__copy__()
-
-    def __copy__(self):
-        return type(self)(self.default_factory, self)
-
-    def __deepcopy__(self, memo):
-        import copy
-        return type(self)(self.default_factory,
-                          copy.deepcopy(self.items()))
-
-    def __repr__(self):
-        return 'OrderedDefaultDict(%s, %s)' % (self.default_factory,
-                                               OrderedDict.__repr__(self))
-
-def get_gene_list(gene_dict):
-    return list(set(gene_dict.keys()))
-
-def get_UTR_regions(gene_dict, gene_id, transcript, cds):
-    if len(cds)==0:
-        return [], []
-    utr5_regions = []
-    utr3_regions = []
-    utrs = gene_dict[gene_id][transcript]['UTR']
-    first_cds = cds[0]
-    last_cds = cds[-1]
-    for utr in utrs:
-        ## Push all cds at once
-        ## Sort later to remove duplicates
-        strand = utr.strand
-        if strand == '+':
-            if utr.stop < first_cds.start:
-                utr.feature_type = 'five_prime_UTR'
-                utr5_regions.append(utr)
-            elif utr.start > last_cds.stop:
-                utr.feature_type = 'three_prime_UTR'
-                utr3_regions.append(utr)
-            else:
-                raise RuntimeError('Error with cds')
-        elif strand == '-':
-            if utr.stop < first_cds.start:
-                utr.feature_type = 'three_prime_UTR'
-                utr3_regions.append(utr)
-            elif utr.start > last_cds.stop:
-                utr.feature_type = 'five_prime_UTR'
-                utr5_regions.append(utr)                
-            else:
-                raise RuntimeError('Error with cds')    
-    return utr5_regions, utr3_regions
-
-def create_bed(regions, bedtype='0'):
-    '''Create bed from list of regions
-    bedtype: 0 or 1
-        0-Based or 1-based coordinate of the BED
-    '''
-    bedstr = ''
-    for region in regions:
-        if len(region.attributes['gene_id']) == 1:
-            ## GTF start is 1-based, so shift by one while writing 
-            ## to 0-based BED format
-            if bedtype == '0':
-                start = region.start - 1
-            else:
-                start = region.start
-            bedstr += '{}\t{}\t{}\t{}\t{}\t{}\n'.format(region.chrom,
-                                                start,
-                                                region.stop,
-                                                re.sub('\.\d+', '', region.attributes['gene_id'][0]),
-                                                '.',
-                                                region.strand)
-    return bedstr
-
-def rename_regions(regions, gene_id):
-    #print(len(regions))
-    regions = list(regions)
-    if len(regions) == 0:
-        return []
-    for region in regions:
-        region.attributes['gene_id'] = gene_id
-    return regions
-
-def merge_regions(db, regions):
-    if len(regions) == 0:
-        return []
-    merged = db.merge(sorted(list(regions), key=lambda x: x.start))
-    return merged
-
-def merge_regions_nostrand(db, regions):
-    if len(regions) == 0:
-        return []
-    merged = db.merge(sorted(list(regions), key=lambda x: x.start), ignore_strand=True)
-    return merged
-
-from bioinfokit.analys import gff
-
-def create_genecode_db(gff_file):
-    gtf_file = gff_file.replace(".gff3", ".gtf").split("/")[2]
-    if path.exists(gtf_file) == False:
-        gff.gff_to_gtf(file=gff_file)
-
-    gtf_db_file = gff_file.replace(".gff3", ".gtf.db")
-    print(gtf_db_file)
-    print(path.exists(gtf_db_file))
-    if path.exists(gtf_db_file) == False:
-        print('uh...')
-        db = gffutils.create_db(gtf_file, dbfn=gtf_db_file, merge_strategy='merge', force=True, disable_infer_transcripts=True, disable_infer_genes=True)
-
-    db = gffutils.FeatureDB(gtf_db_file, keep_order=True)
-    gene_dict = create_gene_dict(db)
-    return gene_dict, db
-
-def extract_features(working_directory, gff_file):
-    data_files = [
-        f'./{working_directory}/utr5.bed.gz',
-        f'./{working_directory}/utr3.bed.gz',
-        f'./{working_directory}/exon.bed.gz',
-        f'./{working_directory}/intron.bed.gz'
-    ]
-
-    existing_data = True
-    for data_file in data_files:
-        existing_data = existing_data and path.exists(data_file)
-
-
-    if existing_data == False:
-        gene_dict, db = create_genecode_db(gff_file)
-        utr5_bed = ''
-        utr3_bed = ''
-        gene_bed = ''
-        exon_bed = ''
-        intron_bed = ''
-        start_codon_bed = ''
-        stop_codon_bed = ''
-        cds_bed = ''
-
-        gene_list = []
-
-        for gene_id in get_gene_list(gene_dict):
-            gene_list.append(gene_dict[gene_id]['gene'])
-            
-            utr5_regions, utr3_regions = [], []
-            exon_regions, intron_regions = [], []
-            star_codon_regions, stop_codon_regions = [], []
-            cds_regions = []
-            
-            for feature in gene_dict[gene_id].keys():
-                if feature == 'gene':
-                    continue
-                cds = list(gene_dict[gene_id][feature]['CDS'])
-                exons = list(gene_dict[gene_id][feature]['exon'])
-                merged_exons = merge_regions(db, exons)
-                introns = db.interfeatures(merged_exons)
-                #utr5_region, utr3_region = get_UTR_regions(gene_dict, gene_id, feature, cds)
-                utr5_region = list(gene_dict[gene_id][feature]['five_prime_utr'])
-                utr3_region = list(gene_dict[gene_id][feature]['three_prime_utr'])
-                utr5_regions += utr5_region
-                utr3_regions += utr3_region
-                exon_regions += exons
-                intron_regions += introns
-                cds_regions += cds
-                
-            merged_utr5 = merge_regions(db, utr5_regions)
-            renamed_utr5 = rename_regions(merged_utr5, gene_id)
-            
-            #print(merged_utr5)
-
-            merged_utr3 = merge_regions(db, utr3_regions)
-            renamed_utr3 = rename_regions(merged_utr3, gene_id)
-            
-            #print(merged_utr3)
-
-            #merged_exons = merge_regions(db, exon_regions)
-            renamed_exons = rename_regions(exon_regions, gene_id)
-            
-            #print(merged_exons)
-
-            merged_introns = merge_regions(db, intron_regions)
-            renamed_introns = rename_regions(merged_introns, gene_id)
-            
-            #print(merged_introns)
-
-            merged_cds = merge_regions(db, cds_regions)
-            #print(merged_cds)
-            renamed_cds = rename_regions(merged_cds, gene_id)
-            
-            utr3_bed += create_bed(renamed_utr3)
-            utr5_bed += create_bed(renamed_utr5)
-            exon_bed += create_bed(renamed_exons)
-            intron_bed += create_bed(renamed_introns)
-            cds_bed += create_bed(renamed_cds)
-
-        gene_bed = create_bed(gene_list)
-        gene_bedtool = pybedtools.BedTool(gene_bed, from_string=True)
-        utr5_bedtool = pybedtools.BedTool(utr5_bed, from_string=True)
-        utr3_bedtool = pybedtools.BedTool(utr3_bed, from_string=True)
-        exon_bedtool = pybedtools.BedTool(exon_bed, from_string=True)
-        intron_bedtool = pybedtools.BedTool(intron_bed, from_string=True)
-        cds_bedtool = pybedtools.BedTool(cds_bed, from_string=True)
-
-        utr5_cds_subtracted = utr5_bedtool.subtract(cds_bedtool)
-        utr3_cds_subtracted = utr3_bedtool.subtract(cds_bedtool)
-        utr5_cds_subtracted.remove_invalid().sort().saveas(os.path.join(working_directory, 'utr5.bed.gz'))
-        utr3_cds_subtracted.remove_invalid().sort().saveas(os.path.join(working_directory, 'utr3.bed.gz'))
-        gene_bedtool.remove_invalid().sort().saveas(os.path.join(working_directory, 'gene.bed.gz'))
-        exon_bedtool.remove_invalid().sort().saveas(os.path.join(working_directory, 'exon.bed.gz'))
-        intron_bedtool.remove_invalid().sort().saveas(os.path.join(working_directory, 'intron.bed.gz'))
-        cds_bedtool.remove_invalid().sort().saveas(os.path.join(working_directory, 'cds.bed.gz'))
-
-        for data_file in data_files:
-            unzip_file(data_file)
-
-    return data_files
-
 def bed_to_indexed_bam(bed_file_name):
     os.system(f'perl bed2sam.pl {bed_file_name}')
     os.system(f'rm {bed_file_name}')
@@ -1109,32 +860,36 @@ def main():
     ensemble_cds_metadata = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_ensembl.json', get_ensembl_data, [gene_name])
 
     gene_id = ensemble_cds_metadata['id']
+    print(gene_id)
     region_name = ensemble_cds_metadata['seq_region_name']
     chromosome = f'chr{region_name}'
     #print(gene_id)
     #associated_enhancer_paths = sync_gene_enhancers(working_directory)
     #sync_databases(working_directory, 'Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
    
-    #sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)
+    sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)
+    get_exons_and_introns_from_genecode('./gencode.v37.chr_patch_hapl_scaff.annotation.gff3')
+    #extract_genecode_untranslated_regions
     #gff3_file = f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3'
     #print('extracting features')
     #feature_files = extract_features(working_directory, gff3_file)
     #sync_databases(working_directory, 'Supplementary_Dataset_S5.gff', 'http://snoatlas.bioinf.uni-leipzig.de/Supplementary_Dataset_S5.gff', False)
     #sync_databases(working_directory, 'human-circdb.hg19.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
+
     #sync_databases(working_directory, 'insulators-experimental.hg19.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
     #sync_databases(working_directory, 'insulators-computational.hg19.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
-    variants = []
-    gwas_snps = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_gwas_variants.json', query_gwas, [gene_name, condition])
-    variants = variants + gwas_snps
+    #variants = []
+    #gwas_snps = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_gwas_variants.json', query_gwas, [gene_name, condition])
+    #variants = variants + gwas_snps
 
-    ncbi_clinical_variants = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
-    variants = variants + ncbi_clinical_variants
+    #ncbi_clinical_variants = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
+    #variants = variants + ncbi_clinical_variants
 
-    print(len(variants))
-    for variant in variants:
-        print(variant)
-    regions = []
+    #print(len(variants))
+    #for variant in variants:
+    #    print(variant)
+    #regions = []
 
     #generate_structural_variants([])
 
@@ -1159,16 +914,19 @@ def main():
     #sno_rnas = extract_sno_rnas(f'./{working_directory}/Supplementary_Dataset_S5.gff', chromosome, gene_name)
     #regions = regions + sno_rnas
 
-    features = extract_genecode_features(f'./gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
+    #features = extract_genecode_features(f'./gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
     #print(features)
-    regions = regions + features
+    #regions = regions + features
 
     #promoters = extract_promoters(f'./{working_directory}/Hs_EPDnew.bed', gene_name)
     #regions = regions + promoters
 
     #circular_rnas = extract_circular_rnas(f'./{working_directory}/human-circdb.hg19.txt', gene_name, chromosome)
-    #regions = regions + dedup_regions(circular_rnas)
+    # chr16	53907697	53922863	+	hsa_circ_0005941	15166	344	Hs68_RNase, Hs68_control, Nhek, K562, Hepg2, Helas3, H1hesc, Gm12878, Bj, Ag04450, A549, Sknshra	None	ANNOTATED, CDS, coding, INTERNAL, OVCODE, OVEXON	NM_001080432	FTO	Jeck2013, Salzman2013
 
+    #print(circular_rnas)
+    #print(len(circular_rnas))
+    #regions = regions + dedup_regions(circular_rnas)
     # computational_insulators = extract_insulators(f'./{working_directory}/insulators-computational.hg19.txt', gene_name, chromosome)
     # regions = regions + dedup_regions(computational_insulators)
 
@@ -1185,8 +943,10 @@ def main():
     #regional_frequencies, region_type_lengths = count_emperical_regional_variant_frequencies(regions, variants)
     #variant_regions = count_statistical_regional_variant_frequencies(regions, variants)
 
-    bed_file_name = write_regions_to_bed(gene_name, chromosome, regions)
-    bed_to_indexed_bam(bed_file_name)
+    #generate_structural_variants(regional_frequencies)
+
+    #bed_file_name = write_regions_to_bed(gene_name, chromosome, regions)
+    #bed_to_indexed_bam(bed_file_name)
 
     #variant_region_expected_frequencies = {}
     #total_lengths = sum(list(region_type_lengths.values()))
@@ -1224,6 +984,6 @@ def main():
     #    print('Dependent (reject H0)')
     #else:
     #    print('Independent (H0 holds true)')
-#main()
-sequence = 'UAUCAGUUAUAUGACUGACGGAACGUGGAAUUAACCACAUGAAGUAUAACGAUGACAAUGCCGACCGUCUGGGCG'
-generate_rna_structure('asdfasdf', 'temp_dir', 'circularRNA', sequence)
+main()
+#sequence = 'UAUCAGUUAUAUGACUGACGGAACGUGGAAUUAACCACAUGAAGUAUAACGAUGACAAUGCCGACCGUCUGGGCG'
+#generate_rna_structure('asdfasdf', 'temp_dir', 'circularRNA', sequence)
