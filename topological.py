@@ -519,8 +519,8 @@ def get_exons_and_introns_from_genecode(genecode_path, working_directory):
     print(genecode_path)
     os.system(f'cat {genecode_path} | {awk_extract("exon")} | bedtools sort | bedtools merge -i - | gzip > genecode_exon_merged.bed.gz')
     os.system(f'cat {genecode_path} | {awk_extract("gene")} | bedtools sort | bedtools subtract -a stdin -b genecode_exon_merged.bed.gz | gzip > genecode_introns.bed.gz')
-    os.system(f'gzip -d genecode_exon_merged.bed.gz > genecode_exon_merged.bed && mv genecode_exon_merged.bed {working_directory}')
-    os.system(f'gzip -d genecode_introns.bed.gz > genecode_introns.bed && mv genecode_introns.bed {working_directory}')
+    os.system(f'gzip -d genecode_exon_merged.bed.gz && mv genecode_exon_merged.bed {working_directory}')
+    os.system(f'gzip -d genecode_introns.bed.gz && mv genecode_introns.bed {working_directory}')
     return f'{working_directory}/genecode_exon_merged.bed', f'{working_directory}/genecode_introns.bed'
 
 def get_ncbi_clinical_variants(params):
@@ -868,7 +868,7 @@ def main():
     #sync_databases(working_directory, 'Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
    
     sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)
-    get_exons_and_introns_from_genecode('./gencode.v37.chr_patch_hapl_scaff.annotation.gff3')
+    get_exons_and_introns_from_genecode(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', working_directory)
     #extract_genecode_untranslated_regions
     #gff3_file = f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3'
     #print('extracting features')
