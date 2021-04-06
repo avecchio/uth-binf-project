@@ -714,13 +714,15 @@ def generate_circular_rna_structural_variants(circular_rnas, chromosome, xonic_s
             genomic_seq = get_sequence_from_ensembl(chromosome, rna_start + 1, rna_end)
             dna_string = ''.join(genomic_seq.split("\n")[1:])
             real_rna = circ_rna_sequences[identifier]
+            if real_rna[0:15] in dna_string:
+                print('yiss')
 
-            query = StripedSmithWaterman(dna_string)
-            alignment = query(real_rna)
-            print(alignment.aligned_target_sequence)
-            print(len(alignment.aligned_target_sequence))
-            print(len(real_rna))
-            print(real_rna in dna_string)
+            #query = StripedSmithWaterman(dna_string)
+            #alignment = query(real_rna)
+            #print(alignment.aligned_target_sequence)
+            #print(len(alignment.aligned_target_sequence))
+            #print(len(real_rna))
+            #print(real_rna in dna_string)
             #print(alignment.aligned_target_sequence)
             #alignments = pairwise2.align.globalxx(dna_string, real_rna)
             #print(format_alignment(*alignments[0]))
@@ -745,7 +747,6 @@ def generate_circular_rna_structural_variants(circular_rnas, chromosome, xonic_s
     # mutate
     # assemble
     # return
-
 
 def generate_structural_variants(regions):
     rna_regions = regions
