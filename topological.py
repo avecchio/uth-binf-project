@@ -341,6 +341,7 @@ def extract_circular_rnas(file_path, gene_name, chromosome):
                 identifier = entry[4]
                 if entry[11] == gene_name:
                     print('=======================')
+                    print(identifier)
                     print(start, end)
                     print(convert_hg19_to_hg38(chromosome, int(start)), convert_hg19_to_hg38(chromosome, int(end)))
                     circular_rnas.append({
@@ -496,7 +497,7 @@ def extract_genecode_regions(file_path, ensembl_gene_id):
                 gene_id = information[2]
                 
                 accepted_biotypes = [
-                    'CDS', 'three_prime_UTR', 'five_prime_UTR',
+                    'CDS', 'exon', 'three_prime_UTR', 'five_prime_UTR',
                 ]
 
                 is_type = (biotype in accepted_biotypes)
@@ -688,6 +689,10 @@ def get_unique_items(items):
             unique_items.append(item)
     return unique_items
 
+from Bio import pairwise2
+from Bio.pairwise2 import format_alignment
+from skbio.alignment import StripedSmithWaterman
+
 def generate_circular_rna_structural_variants(circular_rnas, chromosome, xonic_sequences, circ_rna_sequences):
 
     #rna_sequences = read_fasta('asdf.fasta')
@@ -698,12 +703,35 @@ def generate_circular_rna_structural_variants(circular_rnas, chromosome, xonic_s
         rna_end = circular_rna['end']
 
         if circular_rna['meta']['gen_length'] == circular_rna['meta']['spliced_seq_length']:
-            print(circular_rna['meta']['gen_length'])
-            print(rna_start, rna_end)
+            #print(circular_rna['meta']['gen_length'])
+            #print(rna_start, rna_end)
             dna = get_sequence_from_ensembl(chromosome, rna_start + 1, rna_end)
             dna_string = ''.join(dna.split("\n")[1:])
-            print(dna_string)
-            print(circ_rna_sequences[identifier])
+            #print(dna_string)
+            #print(circ_rna_sequences[identifier])
+        else:
+            print('============================================')
+            genomic_seq = get_sequence_from_ensembl(chromosome, rna_start + 1, rna_end)
+            dna_string = ''.join(genomic_seq.split("\n")[1:])
+            real_rna = circ_rna_sequences[identifier]
+
+            query = StripedSmithWaterman(dna_string)
+            alignment = query(real_rna)
+            print(alignment.aligned_target_sequence)
+            print(len(alignment.aligned_target_sequence))
+            print(len(real_rna))
+            print(real_rna in dna_string)
+            #print(alignment.aligned_target_sequence)
+            #alignments = pairwise2.align.globalxx(dna_string, real_rna)
+            #print(format_alignment(*alignments[0]))
+
+            #print(circular_rna['meta']['spliced_seq_length'])
+            #for seq in list(xonic_sequences.keys()):
+            #    if seq in genomic_seq:
+            #        print(len(seq))
+            #        print('yiss')
+
+            
             #print(dna)
             #rna = dna_to_rna(dna)
             #generate_rna_structure(identifier, rna_type, rna)
@@ -945,7 +973,7 @@ def main():
     #associated_enhancer_paths = sync_gene_enhancers(working_directory)
     #sync_databases(working_directory, 'Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
     
-    #sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)
+    sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)
     exon_bed_path, intron_bed_path = get_exons_and_introns_from_genecode(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', working_directory)
         
     #sync_databases(working_directory, 'snodb.tsv', 'http://scottgroup.med.usherbrooke.ca/snoDB/csv', False)
@@ -974,12 +1002,13 @@ def main():
     #sno_rnas = extract_sno_rnas(f'./{working_directory}/snodb.tsv', chromosome, gene_name)
     #regions += dedup_regions( sno_rnas + filtered_nc_rnas )
 
-    #features = extract_genecode_regions(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
+    features = extract_genecode_regions(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
+    genecode_exons = [x for x in features if x['type'] == 'exon']
     #regions += features
 
-    exons = read_bed_file('exon', chromosome, gene_start, gene_end, exon_bed_path)
+    #exons = read_bed_file('exon', chromosome, gene_start, gene_end, exon_bed_path)
     introns = read_bed_file('intron', chromosome, gene_start, gene_end, intron_bed_path)
-    xonic_sequences = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_xonic_sequences.json', get_xonic_sequences, [ chromosome, introns + exons] )
+    xonic_sequences = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_xonic_sequences.json', get_xonic_sequences, [ chromosome, introns + genecode_exons] )
 
     circ_rna_sequences = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_circ_rna.json', get_circ_rna_sequences, [] )
 
@@ -992,6 +1021,9 @@ def main():
 
     circular_rnas = extract_circular_rnas(f'./{working_directory}/human-circdb.hg19.txt', gene_name, chromosome)
     generate_circular_rna_structural_variants(circular_rnas, chromosome, xonic_sequences, circ_rna_sequences)
+
+
+
     #regions += dedup_regions(circular_rnas)
 
     #computational_insulators = extract_insulators(f'./{working_directory}/insulators-computational.hg19.txt', gene_name, chromosome)
