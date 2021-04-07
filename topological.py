@@ -754,7 +754,11 @@ def LCSSubStr(X: str, Y: str,
     # required longest common substring
     return ''.join(resultStr)
  
-  
+def calculate_positions(dna, dna_subset):
+    subset_length = len(dna_subset)
+    start = dna.index(dna_subset) + 1
+    end = start + subset_length - 1
+    return start, end
 
 def generate_circular_rna_structural_variants(circular_rnas, chromosome, xonic_sequences, circ_rna_sequences):
 
