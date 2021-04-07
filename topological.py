@@ -398,6 +398,7 @@ def extract_enhancers(working_directory, file_path, gene_identifier, chromosome)
                             'coordinates': [
                                 'start': convert_hg19_to_hg38(chromosome, int(start)),
                                 'end': convert_hg19_to_hg38(chromosome, int(end)),
+                                'index': 0
                             ],
                             'type': 'enhancer',
                             'strand': '+',
@@ -424,6 +425,7 @@ def extract_promoters(file_path, gene_name):
                         'coordinates': [
                             'start': int(start),
                             'end': int(end),
+                            'index': 0
                         ],
                         'type': 'promoter',
                         'strand': strand,
@@ -467,6 +469,7 @@ def extract_insulators(file_path, gene_name, chromosome):
                         'coordinates': [
                             'start': convert_hg19_to_hg38(chromosome, int(start)),
                             'end': convert_hg19_to_hg38(chromosome, int(end)),
+                            'index': 0
                         ],
                         'type': 'insulator',
                         'strand': '+',
@@ -501,6 +504,7 @@ def extract_sno_rnas(file_path, chromosome, gene_name):
                     'coordinates': [
                         'start': convert_hg19_to_hg38(chromosome, int(start)),
                         'end': convert_hg19_to_hg38(chromosome, int(end)),
+                        'index': 0
                     ],
                     'type': 'snorna',
                     'strand': strand,
@@ -538,6 +542,7 @@ def extract_genecode_regions(file_path, ensembl_gene_id):
                         'coordinates': [
                             'start': int(start),
                             'end': int(end),
+                            'index': 0
                         ],
                         'type': biotype,
                         'strand': '+',
@@ -602,18 +607,26 @@ def filter_nc_rnas(chromosome, nc_rnas):
         if assembly == 'GRCh19':
             nc_rnas_list.append({
                 'identifier': identifier,
-                'start': convert_hg19_to_hg38(chromosome, int(start)),
-                'end': convert_hg19_to_hg38(chromosome, int(end)),
+                'coordinates': [
+                    'start': convert_hg19_to_hg38(chromosome, int(start)),
+                    'end': convert_hg19_to_hg38(chromosome, int(end)),
+                    'index': 0
+                ],
                 'type': biotype,
-                'strand': strand
+                'strand': strand,
+                'meta': {}
             })
         elif assembly == 'GRCh38':
             nc_rnas_list.append({
                 'identifier': identifier,
-                'start': int(start),
-                'end': int(end),
+                'coordinates': [
+                    'start': int(start),
+                    'end': int(end),
+                    'index': 0
+                ],
                 'type': biotype,
-                'strand': strand
+                'strand': strand,
+                'meta': {}
             })
         else:
             print(f'Error: Unknown assembly type [{assembly}] for {identifier}')
@@ -844,8 +857,7 @@ def locate_circular_rna_subcoordinates(circular_rna, chromosome, circ_rna_sequen
     
     remapped_coordinates = remap(real_rna, coordinates)
 
-    circular_rna['coordinates'] = coordinates
-    #TODO: sort me!
+    circular_rna['coordinates'] = remapped_coordinates
     return circular_rna
 
 def generate_structural_variants(regions):
