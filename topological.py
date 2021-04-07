@@ -346,8 +346,10 @@ def extract_circular_rnas(file_path, gene_name, chromosome):
                     print(convert_hg19_to_hg38(chromosome, int(start)), convert_hg19_to_hg38(chromosome, int(end)))
                     circular_rnas.append({
                         'identifier': identifier,
-                        'start': convert_hg19_to_hg38(chromosome, int(start)),
-                        'end': convert_hg19_to_hg38(chromosome, int(end)),
+                        'coordinates': [
+                            'start': convert_hg19_to_hg38(chromosome, int(start)),
+                            'end': convert_hg19_to_hg38(chromosome, int(end)),
+                        ],
                         'type': 'circular_rna',
                         'strand': strand,
                         'meta': {
@@ -379,10 +381,13 @@ def extract_enhancers(working_directory, file_path, gene_identifier, chromosome)
                     if coordinate_id not in enhancers:
                         enhancers[coordinate_id] = {
                             'identifier': f'Enhancer{counter}',
-                            'start': convert_hg19_to_hg38(chromosome, int(start)),
-                            'end': convert_hg19_to_hg38(chromosome, int(end)),
+                            'coordinates': [
+                                'start': convert_hg19_to_hg38(chromosome, int(start)),
+                                'end': convert_hg19_to_hg38(chromosome, int(end)),
+                            ],
                             'type': 'enhancer',
-                            'strand': '+'
+                            'strand': '+',
+                            'meta': {}
                         }
             counter = counter + 1
     return list(enhancers.values())
@@ -402,10 +407,13 @@ def extract_promoters(file_path, gene_name):
                 if gene_name in gene:
                     promoters.append({
                         'identifier': f'promoter{counter}',
-                        'start': int(start),
-                        'end': int(end),
+                        'coordinates': [
+                            'start': int(start),
+                            'end': int(end),
+                        ],
                         'type': 'promoter',
-                        'strand': strand
+                        'strand': strand,
+                        'meta': {}
                     })
             else:
                 print('not a proper entry for file: ' + file_path)
@@ -442,10 +450,13 @@ def extract_insulators(file_path, gene_name, chromosome):
                 if flanking and (species == 'Human'):
                     insulators.append({
                         'identifier': identifier,
-                        'start': convert_hg19_to_hg38(chromosome, int(start)),
-                        'end': convert_hg19_to_hg38(chromosome, int(end)),
+                        'coordinates': [
+                            'start': convert_hg19_to_hg38(chromosome, int(start)),
+                            'end': convert_hg19_to_hg38(chromosome, int(end)),
+                        ],
                         'type': 'insulator',
-                        'strand': '+'
+                        'strand': '+',
+                        'meta': {}
                     })
             counter = counter + 1
     return insulators
@@ -473,10 +484,13 @@ def extract_sno_rnas(file_path, chromosome, gene_name):
             if gene_name in host_gene:
                 rnas.append({
                     'identifier': information[2],
-                    'start': convert_hg19_to_hg38(chromosome, int(start)),
-                    'end': convert_hg19_to_hg38(chromosome, int(end)),
+                    'coordinates': [
+                        'start': convert_hg19_to_hg38(chromosome, int(start)),
+                        'end': convert_hg19_to_hg38(chromosome, int(end)),
+                    ],
                     'type': 'snorna',
-                    'strand': strand
+                    'strand': strand,
+                    'meta': {}
                 })
     return rnas
 
@@ -507,10 +521,13 @@ def extract_genecode_regions(file_path, ensembl_gene_id):
                     features_dict[biotype] += 1            
                     features.append({
                         'identifier': identifier,
-                        'start': int(start),
-                        'end': int(end),
+                        'coordinates': [
+                            'start': int(start),
+                            'end': int(end),
+                        ],
                         'type': biotype,
-                        'strand': '+'
+                        'strand': '+',
+                        'meta': {}
                     })
 
     print(features_dict)
