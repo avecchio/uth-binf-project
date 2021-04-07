@@ -790,6 +790,9 @@ def calculate_positions(dna, dna_subset):
     end = start + subset_length - 1
     return start, end
 
+def remap(real_rna, coordinates):
+    return coordinates
+
 def locate_circular_rna_subcoordinates(circular_rna, chromosome, circ_rna_sequences):
 
     actual_count = 0
@@ -808,13 +811,23 @@ def locate_circular_rna_subcoordinates(circular_rna, chromosome, circ_rna_sequen
         real_rna = circ_rna_sequences[identifier]
 
         processing = True
+        counter = 0
         while processing:
             sub_string = LCSSubStr(dna_string, real_rna, len(dna_string), len(real_rna))
             if sub_string == None:
                 processing = False
             else:
+                start, end = calculate_positions(dna_string, real_rna)
+                coordinates.append({
+                    'start': start,
+                    'end': end,
+                    'order': counter
+                })
                 print(len(sub_string))
-                real_rna = real_rna.replace(sub_string, "-")
+                real_rna = real_rna.replace(sub_string, f'|{counter}|')
+            counter += 1
+    
+    remapped_coordinates = remap(real_rna, coordinates)
 
     circular_rna['coordinates'] = coordinates
     #TODO: sort me!
