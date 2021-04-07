@@ -344,12 +344,16 @@ def extract_circular_rnas(file_path, gene_name, chromosome):
                     print(identifier)
                     print(start, end)
                     print(convert_hg19_to_hg38(chromosome, int(start)), convert_hg19_to_hg38(chromosome, int(end)))
+
+                    'region_start': convert_hg19_to_hg38(chromosome, int(start)),
+                    'region_end': convert_hg19_to_hg38(chromosome, int(end)),
+
+
+                    coordinates = generate_circular_rna_coordinates(circular_rna, chromosome, circ_rna_sequences)
+
                     circular_rnas.append({
                         'identifier': identifier,
-                        'coordinates': [
-                            'start': convert_hg19_to_hg38(chromosome, int(start)),
-                            'end': convert_hg19_to_hg38(chromosome, int(end)),
-                        ],
+                        'coordinates': coordinates,
                         'type': 'circular_rna',
                         'strand': strand,
                         'meta': {
@@ -630,7 +634,9 @@ def get_sequence_from_ensembl(chromosome, start, end):
     ext = f"/sequence/region/human/{chromosome}:{start}..{end}:1?coord_system_version=GRCh38"
     
     r = requests.get(server+ext, headers={ "Content-Type" : "text/x-fasta"})
-    return r.text
+
+    dna = r.text
+    return ''.join(dna.split("\n")[1:])
 
 def dna_to_rna(dna):
     return dna.replace("T", "U")
@@ -777,80 +783,29 @@ def calculate_positions(dna, dna_subset):
     end = start + subset_length - 1
     return start, end
 
-def generate_circular_rna_structural_variants(circular_rnas, chromosome, xonic_sequences, circ_rna_sequences):
+def generate_circular_rna_coordinates(circular_rna, chromosome, circ_rna_sequences):
 
     actual_count = 0
     impacted_length = 0
 
-    #rna_sequences = read_fasta('asdf.fasta')
-    for circular_rna in circular_rnas:
-        #print(circular_rna)
-        identifier = circular_rna['identifier']
-        rna_start = circular_rna['start']
-        rna_end = circular_rna['end']
+    identifier = circular_rna['identifier']
+    rna_start = circular_rna['start']
+    rna_end = circular_rna['end']
 
-        if circular_rna['meta']['gen_length'] == circular_rna['meta']['spliced_seq_length']:
-            #print(circular_rna['meta']['gen_length'])
-            #print(rna_start, rna_end)
-            dna = get_sequence_from_ensembl(chromosome, rna_start + 1, rna_end)
-            dna_string = ''.join(dna.split("\n")[1:])
-            #print(dna_string)
-            #print(circ_rna_sequences[identifier])
-        else:
-            print('============================================')
-            genomic_seq = get_sequence_from_ensembl(chromosome, rna_start + 1, rna_end)
-            dna_string = ''.join(genomic_seq.split("\n")[1:])
-            real_rna = circ_rna_sequences[identifier]
+    if circular_rna['meta']['gen_length'] == circular_rna['meta']['spliced_seq_length']:
+        dna_string = get_sequence_from_ensembl(chromosome, rna_start + 1, rna_end)
+    else:
+        dna_string = get_sequence_from_ensembl(chromosome, rna_start + 1, rna_end)
+        real_rna = circ_rna_sequences[identifier]
 
-            processing = True
-            while processing:
-                X = dna_string
-                Y = real_rna
-                m = len(X)
-                n = len(Y)
-
-                sub_string = LCSSubStr(X, Y, m, n)
-                if sub_string == None:
-                    processing = False
-                else:
-                    print(len(sub_string))
-                    real_rna = real_rna.replace(sub_string, "-")
-
-            
-            
-            #if real_rna[0:15] in dna_string:
-            #    print('yiss')
-
-            #query = StripedSmithWaterman(dna_string)
-            #alignment = query(real_rna)
-            #print(alignment.aligned_target_sequence)
-            #print(len(alignment.aligned_target_sequence))
-            #print(len(real_rna))
-            #print(real_rna in dna_string)
-            #print(alignment.aligned_target_sequence)
-            #alignments = pairwise2.align.globalxx(dna_string, real_rna)
-            #print(format_alignment(*alignments[0]))
-
-            #print(circular_rna['meta']['spliced_seq_length'])
-            #for seq in list(xonic_sequences.keys()):
-            #    if seq in genomic_seq:
-            #        print(len(seq))
-            #        print('yiss')
-
-            
-            #print(dna)
-            #rna = dna_to_rna(dna)
-            #generate_rna_structure(identifier, rna_type, rna)
-
-            #print('hi')
-    #    actual_sequence = rna_sequences[identity]
-    #    coordinates = []
-    #        if seq in actual_sequence:
-    #            coordinates.append([tron['start'], tron['end'], seq])
-    #    print(coordinates)
-    # mutate
-    # assemble
-    # return
+        processing = True
+        while processing:
+            sub_string = LCSSubStr(dna_string, real_rna, len(dna_string), len(real_rna))
+            if sub_string == None:
+                processing = False
+            else:
+                print(len(sub_string))
+                real_rna = real_rna.replace(sub_string, "-")
 
 def generate_structural_variants(regions):
     rna_regions = regions
@@ -1036,17 +991,6 @@ def merge_regions(region_edges):
                 start = None
     return edges
 
-def get_xonic_sequences(params):
-    chromosome = params[0]
-    xonic_sequences = {}
-    for tron in params[1]:
-        start = tron['start']
-        end = tron['end']
-        seq = get_sequence_from_ensembl(chromosome, start, end)
-        normal_seq = ''.join(seq.split("\n")[1:])
-        xonic_sequences[normal_seq] = f'{start}:{end}'
-    return xonic_sequences
-
 def get_circ_rna_sequences(params):
     data = {}
     records = SeqIO.parse("circrna.fasta", "fasta")
@@ -1113,8 +1057,7 @@ def main():
 
     #exons = read_bed_file('exon', chromosome, gene_start, gene_end, exon_bed_path)
     introns = read_bed_file('intron', chromosome, gene_start, gene_end, intron_bed_path)
-    xonic_sequences = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_xonic_sequences.json', get_xonic_sequences, [ chromosome, introns + genecode_exons] )
-
+    
     circ_rna_sequences = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_circ_rna.json', get_circ_rna_sequences, [] )
 
     
@@ -1125,9 +1068,6 @@ def main():
     #regions += promoters
 
     circular_rnas = extract_circular_rnas(f'./{working_directory}/human-circdb.hg19.txt', gene_name, chromosome)
-    generate_circular_rna_structural_variants(circular_rnas, chromosome, xonic_sequences, circ_rna_sequences)
-
-
 
     #regions += dedup_regions(circular_rnas)
 
