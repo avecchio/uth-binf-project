@@ -78,6 +78,14 @@ def db_cache(file_name, callback, callback_params):
             outfile.write(json_str)
         return data
 
+def load_fasta_file(fasta_path):
+    data = {}
+    records = SeqIO.parse(fasta_path, "fasta")
+    for record in records:
+        identifier = record.id.split("|")[0]
+        data[identifier] = str(record.seq)
+    return data
+
 def plot_bar_chart(frequencies_dict, xlabel, ylabel, title, filename):
 
     data = [list(frequencies_dict.values())]
@@ -348,10 +356,7 @@ def extract_circular_rnas(file_path, gene_name, chromosome):
                     'region_start': convert_hg19_to_hg38(chromosome, int(start)),
                     'region_end': convert_hg19_to_hg38(chromosome, int(end)),
 
-
-                    coordinates = generate_circular_rna_coordinates(circular_rna, chromosome, circ_rna_sequences)
-
-                    circular_rnas.append({
+                    circular_rna = {
                         'identifier': identifier,
                         'coordinates': coordinates,
                         'type': 'circular_rna',
@@ -360,7 +365,11 @@ def extract_circular_rnas(file_path, gene_name, chromosome):
                             'gen_length': entry[5],
                             'spliced_seq_length': entry[6]
                         }
-                    })
+                    }
+
+                    circular_rna_with_subcoordinates = locate_circular_rna_subcoordinates(circular_rna, chromosome, circ_rna_sequences)
+
+                    circular_rnas.append(circular_rna_with_subcoordinates)
             counter = counter + 1
     return circular_rnas
 
@@ -537,15 +546,15 @@ def extract_genecode_regions(file_path, ensembl_gene_id):
     print(features_dict)
     return features
 
-def awk_extract(feature_type):
+def awk_gff_extract(feature_type):
     return 'awk \'BEGIN{OFS="\t";} $3=="' + feature_type + '" {print $1,$4-1,$5}\''
 
 def get_exons_and_introns_from_genecode(genecode_path, working_directory):
     if path.exists(f'{working_directory}/genecode_exon_merged.bed') and path.exists(f'{working_directory}/genecode_introns.bed'):
         return f'{working_directory}/genecode_exon_merged.bed', f'{working_directory}/genecode_introns.bed'
 
-    os.system(f'cat {genecode_path} | {awk_extract("exon")} | bedtools sort | bedtools merge -i - | gzip > genecode_exon_merged.bed.gz')
-    os.system(f'cat {genecode_path} | {awk_extract("gene")} | bedtools sort | bedtools subtract -a stdin -b genecode_exon_merged.bed.gz | gzip > genecode_introns.bed.gz')
+    os.system(f'cat {genecode_path} | {awk_gff_extract("exon")} | bedtools sort | bedtools merge -i - | gzip > genecode_exon_merged.bed.gz')
+    os.system(f'cat {genecode_path} | {awk_gff_extract("gene")} | bedtools sort | bedtools subtract -a stdin -b genecode_exon_merged.bed.gz | gzip > genecode_introns.bed.gz')
     os.system(f'gzip -d genecode_exon_merged.bed.gz && mv genecode_exon_merged.bed {working_directory}')
     os.system(f'gzip -d genecode_introns.bed.gz && mv genecode_introns.bed {working_directory}')
     return f'{working_directory}/genecode_exon_merged.bed', f'{working_directory}/genecode_introns.bed'
@@ -712,10 +721,6 @@ def get_unique_items(items):
             unique_items.append(item)
     return unique_items
 
-from Bio import pairwise2
-from Bio.pairwise2 import format_alignment
-from skbio.alignment import StripedSmithWaterman
-
 
 def LCSSubStr(X: str, Y: str,
                    m: int, n: int):
@@ -783,10 +788,12 @@ def calculate_positions(dna, dna_subset):
     end = start + subset_length - 1
     return start, end
 
-def generate_circular_rna_coordinates(circular_rna, chromosome, circ_rna_sequences):
+def locate_circular_rna_subcoordinates(circular_rna, chromosome, circ_rna_sequences):
 
     actual_count = 0
     impacted_length = 0
+
+    coordinates = []
 
     identifier = circular_rna['identifier']
     rna_start = circular_rna['start']
@@ -807,6 +814,9 @@ def generate_circular_rna_coordinates(circular_rna, chromosome, circ_rna_sequenc
                 print(len(sub_string))
                 real_rna = real_rna.replace(sub_string, "-")
 
+    circular_rna['coordinates'] = coordinates
+    return circular_rna
+
 def generate_structural_variants(regions):
     rna_regions = regions
     for rna_region in rna_regions:
@@ -826,15 +836,22 @@ def generate_structural_variants(regions):
         #   mutated_rna = dna_to_rna(mutated_dna)
         #   generate_rna_structure(identifier, rna_type, rna)
 
+def within_range(coordinates, variant_start, variant_end)
+    for coordinate in coordinates:
+        after_start = coordinate['start'] <= variant_start and coordinate['end'] >= variant_start
+        before_end = coordinate['start'] <= variant_end and coordinate['end'] >= variant_end
+        if after_start and before_end:
+            return True
+    return False
+
 def count_overlapping_variant_frequencies(regions, variants):
     overlap_variant_regions = {}
     unique_overlap_variant_regions = {}
     for variant in variants:
         regions_tracker = []
         for region in regions:
-            after_start = region['start'] <= variant['start'] and region['end'] >= variant['start']
-            before_end = region['start'] <= variant['stop'] and region['end'] >= variant['stop']
-            if after_start or before_end:
+            within = within_range(region['coordinates'], variant['start'], variant['stop'])
+            if within:
                 regions_tracker.append(region['type'])
         if str(regions_tracker) not in overlap_variant_regions:
             overlap_variant_regions[str(len(regions_tracker))] = 0
@@ -872,9 +889,8 @@ def count_emperical_regional_variant_frequencies(regions, variants):
         })
         
         for variant in variants:
-            after_start = region['start'] <= variant['start'] and region['end'] >= variant['start']
-            before_end = region['start'] <= variant['stop'] and region['end'] >= variant['stop']
-            if after_start or before_end:
+            within = within_range(region['coordinates'], variant['start'], variant['stop'])
+            if within:
                 regional_frequencies[region['type']][region['identifier']]['variants'].append(variant)
 
     return regional_frequencies, region_type_lengths
@@ -887,9 +903,10 @@ def count_statistical_regional_variant_frequencies(regions, variants):
         for region in regions:
             if region['type'] not in variant_regions:
                 variant_regions[region['type']] = 0
-            after_start = region['start'] <= variant['start'] and region['end'] >= variant['start']
-            before_end = region['start'] <= variant['stop'] and region['end'] >= variant['stop']
-            if after_start or before_end:
+
+
+            within = within_range(region['coordinates'], variant['start'], variant['stop'])
+            if within:
                 region_type = region['type']
                 if region_type not in regions_impacted:
                     regions_impacted.append(region_type)  
@@ -990,15 +1007,6 @@ def merge_regions(region_edges):
                 })
                 start = None
     return edges
-
-def get_circ_rna_sequences(params):
-    data = {}
-    records = SeqIO.parse("circrna.fasta", "fasta")
-    for record in records:
-        identifier = record.id.split("|")[0]
-        data[identifier] = str(record.seq)
-
-    return data
 
 def main():
     working_directory = 'data'
