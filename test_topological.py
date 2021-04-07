@@ -221,17 +221,44 @@ def LCSSubStr(X: str, Y: str,
 # sanjeev2552
 import requests
 
-def calculate_positions(dna, dna_subset):
-    subset_length = len(dna_subset)
-    start = dna.index(dna_subset) + 1
-    end = start + subset_length - 1
-    return start, end
+#def calculate_positions(dna, dna_subset):
+#    subset_length = len(dna_subset)
+#    start = dna.index(dna_subset) + 1
+#    end = start + subset_length - 1
+#    return start, end
 
-dna = 'ATACGGTGAGGTAGCCGATATAGATATAGCGCTAAGGAGATAGTGCTAGACG'
-subset = 'CGATATAGATATAGCGCTAAGGAG'
+#dna = 'ATACGGTGAGGTAGCCGATATAGATATAGCGCTAAGGAGATAGTGCTAGACG'
+#subset = 'CGATATAGATATAGCGCTAAGGAG'
 
-start, end = calculate_positions(dna, subset)
-print(start, end)
+#start, end = calculate_positions(dna, subset)
+#print(start, end)
+
+def order_search(coordinates, index):
+    for i in range(len(coordinates)):
+        if coordinates[i]['order'] == index:
+            return coordinates[i]
+    return None
+
+def remap(real_rna, coordinates):
+    remapped_coordinates = []
+    orders = real_rna[1:-1].split("||")
+
+    for counter in range(len(coordinates)):
+        order = orders[counter]
+        coordinate = order_search(coordinates, order)
+        coordinate['order'] = counter
+        remapped_coordinates.append(coordinate)
+
+    return remapped_coordinates
+
+coordinates = [
+    {'start': 9000, 'end': 9090, 'order': 1},
+    {'start': 0, 'end': 30, 'order': 2},
+    {'start': 3000, 'end': 3030, 'order': 3},
+    {'start': 2000, 'end': 2020, 'order': 4},
+]
+
+remap('|4||3||1||2|', coordinates)
 
 #def get_sequence_from_ensembl(chromosome, start, end):
 #    server = "https://rest.ensembl.org"

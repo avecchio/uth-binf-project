@@ -790,8 +790,23 @@ def calculate_positions(dna, dna_subset):
     end = start + subset_length - 1
     return start, end
 
+def order_search(coordinates, index):
+    for i in range(len(coordinates)):
+        if coordinates[i]['order'] == index:
+            return coordinates[i]
+    return None
+
 def remap(real_rna, coordinates):
-    return coordinates
+    remapped_coordinates = []
+    orders = real_rna[1:-1].split("||")
+
+    for counter in range(len(coordinates)):
+        order = orders[counter]
+        coordinate = order_search(coordinates, order)
+        coordinate['order'] = counter
+        remapped_coordinates.append(coordinate)
+
+    return remapped_coordinates
 
 def locate_circular_rna_subcoordinates(circular_rna, chromosome, circ_rna_sequences):
 
@@ -852,14 +867,13 @@ def generate_structural_variants(regions):
         for variant in rna_region['variants']:
             variant_dna = ''
             for coordinate in rna_region['coordinates']:
-
                 after_start = coordinate['start'] <= variant['start'] and coordinate['end'] >= variant['start']
                 before_end = coordinate['start'] <= variant['stop'] and coordinate['end'] >= variant['stop']
                 if after_start and before_end:
                     dna += get_sequence_from_ensembl(chromosome, coordinate['start'], coordinate['end'])
                     # need to adjust start/end points to zero pos
-                    adjusted_start = variant['start'] - coordinate['start'] + 1
-                    adjusted_end = variant['stop'] - coordinate['end']
+                    adjusted_start = variant['start'] - coordinate['start']
+                    adjusted_end = variant['stop'] - coordinate['end'] - 1
                     variant_dna += mutate_dna(adjusted_start, adjusted_end, variant['alternate_allele'], dna)
             mutated_rna = dna_to_rna(variant_dna)
         #   generate_rna_structure(identifier, rna_type, rna)
