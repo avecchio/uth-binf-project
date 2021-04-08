@@ -895,6 +895,7 @@ def count_overlapping_variant_frequencies(regions, variants):
     for variant in variants:
         regions_tracker = []
         for region in regions:
+            print(region)
             within = within_range(region['coordinates'], variant['start'], variant['stop'])
             if within:
                 regions_tracker.append(region['type'])
@@ -951,9 +952,9 @@ def count_statistical_regional_variant_frequencies(regions, variants):
                 variant_regions[region['type']] = 0
 
 
+            region_type = region['type']
             within = within_range(region['coordinates'], variant['start'], variant['stop'])
             if within and (region_type not in regions_impacted):
-                    region_type = region['type']
                     regions_impacted.append(region_type)  
         num_regions_impacted = len(regions_impacted)
         if num_regions_impacted > 0:
@@ -1014,10 +1015,14 @@ def read_bed_file(biotype, gene_chromosome, gene_start, gene_end, file_path):
             if start >= gene_start and end <= gene_end and chromosome == gene_chromosome:
                 genecode_regions.append({
                     'identifier': f'{biotype}-{str(counter)}',
-                    'start': start,
-                    'end': end,
+                    'coordinates': [{
+                        'start': start,
+                        'end': end,
+                        'order': 0
+                    }],
                     'type': biotype,
-                    'strand': '?'
+                    'strand': '?',
+                    'meta': {}
                 })
         counter += 1
     return genecode_regions
@@ -1143,7 +1148,6 @@ def main():
     #bed_file_name = write_regions_to_bed(gene_name, chromosome, regions)
     #bed_to_indexed_bam(bed_file_name)
 
-    code = '''
     region_lengths = {}
     for region in region_type_lengths:
         print(region)
@@ -1185,14 +1189,12 @@ def main():
     
     # interpret p-value
     alpha = 0.05
-    print('Stats: ' + stat)
+    #print('Stats: ' + stat)
     print("Dof" + str(dof))
     print("p value is " + str(p))
     if p <= alpha:
         print('Dependent (reject H0)')
     else:
         print('Independent (H0 holds true)')
-    
 
-    '''
 main()
