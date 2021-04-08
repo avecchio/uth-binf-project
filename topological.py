@@ -78,7 +78,8 @@ def db_cache(file_name, callback, callback_params):
             outfile.write(json_str)
         return data
 
-def load_fasta_file(fasta_path):
+def load_fasta_file(params):
+    fasta_path = params[0]
     data = {}
     records = SeqIO.parse(fasta_path, "fasta")
     for record in records:
@@ -187,8 +188,10 @@ def get_clinvar_entry(id, condition):
             locations = record['SimpleAllele']['Location']['SequenceLocation']
 
             if is_condition:
+                print(len(locations))
                 for location in locations:                
                         if location['@Assembly'] == 'GRCh38':
+                            print('adding')
                             variants.append({
                                 'start': int(location['@start']),
                                 'stop': int(location['@stop']),
@@ -336,7 +339,7 @@ def sync_gene_enhancers(working_directory):
     return enhancer_paths
 
 def extract_circular_rnas(params):
-    file_path, gene_name, chromosome = params
+    file_path, gene_name, chromosome, circ_rna_sequences = params
     circular_rnas = []
     with open(file_path) as fp:
         lines = fp.readlines()
@@ -349,22 +352,17 @@ def extract_circular_rnas(params):
                 strand = entry[3]
                 identifier = entry[4]
                 if entry[11] == gene_name:
-                    print('=======================')
-                    print(identifier)
-                    print(start, end)
-                    print(convert_hg19_to_hg38(chromosome, int(start)), convert_hg19_to_hg38(chromosome, int(end)))
-
-                    'region_start': convert_hg19_to_hg38(chromosome, int(start)),
-                    'region_end': convert_hg19_to_hg38(chromosome, int(end)),
 
                     circular_rna = {
                         'identifier': identifier,
-                        'coordinates': coordinates,
+                        'coordinates': [],
                         'type': 'circular_rna',
                         'strand': strand,
                         'meta': {
                             'gen_length': entry[5],
-                            'spliced_seq_length': entry[6]
+                            'spliced_seq_length': entry[6],
+                            'region_start': convert_hg19_to_hg38(chromosome, int(start)),
+                            'region_end': convert_hg19_to_hg38(chromosome, int(end)),
                         }
                     }
 
@@ -395,11 +393,11 @@ def extract_enhancers(working_directory, file_path, gene_identifier, chromosome)
                     if coordinate_id not in enhancers:
                         enhancers[coordinate_id] = {
                             'identifier': f'Enhancer{counter}',
-                            'coordinates': [
+                            'coordinates': [{
                                 'start': convert_hg19_to_hg38(chromosome, int(start)),
                                 'end': convert_hg19_to_hg38(chromosome, int(end)),
                                 'index': 0
-                            ],
+                            }],
                             'type': 'enhancer',
                             'strand': '+',
                             'meta': {}
@@ -422,11 +420,11 @@ def extract_promoters(file_path, gene_name):
                 if gene_name in gene:
                     promoters.append({
                         'identifier': f'promoter{counter}',
-                        'coordinates': [
+                        'coordinates': [{
                             'start': int(start),
                             'end': int(end),
                             'index': 0
-                        ],
+                        }],
                         'type': 'promoter',
                         'strand': strand,
                         'meta': {}
@@ -466,11 +464,11 @@ def extract_insulators(file_path, gene_name, chromosome):
                 if flanking and (species == 'Human'):
                     insulators.append({
                         'identifier': identifier,
-                        'coordinates': [
+                        'coordinates': [{
                             'start': convert_hg19_to_hg38(chromosome, int(start)),
                             'end': convert_hg19_to_hg38(chromosome, int(end)),
                             'index': 0
-                        ],
+                        }],
                         'type': 'insulator',
                         'strand': '+',
                         'meta': {}
@@ -497,15 +495,16 @@ def extract_sno_rnas(file_path, chromosome, gene_name):
             start = metadata[4]
             end = metadata[5]
             strand = metadata[6]
+            rna_cen_id = metadata[12]
             host_gene = metadata[20]
-            if gene_name in host_gene:
+            if (gene_name in host_gene) and (rna_cen_id == None):
                 rnas.append({
                     'identifier': information[2],
-                    'coordinates': [
+                    'coordinates': [{
                         'start': convert_hg19_to_hg38(chromosome, int(start)),
                         'end': convert_hg19_to_hg38(chromosome, int(end)),
                         'index': 0
-                    ],
+                    }],
                     'type': 'snorna',
                     'strand': strand,
                     'meta': {}
@@ -539,11 +538,11 @@ def extract_genecode_regions(file_path, ensembl_gene_id):
                     features_dict[biotype] += 1            
                     features.append({
                         'identifier': identifier,
-                        'coordinates': [
+                        'coordinates': [{
                             'start': int(start),
                             'end': int(end),
                             'index': 0
-                        ],
+                        }],
                         'type': biotype,
                         'strand': '+',
                         'meta': {}
@@ -574,18 +573,6 @@ def get_ncbi_clinical_variants(params):
         variants = variants + variant_coordinates
     return variants
 
-def dedup_regions(regions):
-    unique_regions = []
-    unique_region_coordinates = {}
-    for region in regions:
-        start = region['start']
-        end = region['end']
-        coordinate = f'{start}-{end}'
-        if coordinate not in unique_region_coordinates:
-            unique_region_coordinates[coordinate] = 0
-            unique_regions.append(region)
-    return unique_regions
-
 def filter_nc_rnas(chromosome, nc_rnas):
     filtered_nc_rnas = {}
     rna_ids = []
@@ -604,14 +591,15 @@ def filter_nc_rnas(chromosome, nc_rnas):
         biotype = filtered_nc_rnas[rna]['rna_type']
         identifier = filtered_nc_rnas[rna]['sr_region_name']
         assembly = filtered_nc_rnas[rna]['sr_assembly']
+        strand = filtered_nc_rnas[rna]['sr_strand']
         if assembly == 'GRCh19':
             nc_rnas_list.append({
                 'identifier': identifier,
-                'coordinates': [
+                'coordinates': [{
                     'start': convert_hg19_to_hg38(chromosome, int(start)),
                     'end': convert_hg19_to_hg38(chromosome, int(end)),
                     'index': 0
-                ],
+                }],
                 'type': biotype,
                 'strand': strand,
                 'meta': {}
@@ -619,11 +607,11 @@ def filter_nc_rnas(chromosome, nc_rnas):
         elif assembly == 'GRCh38':
             nc_rnas_list.append({
                 'identifier': identifier,
-                'coordinates': [
+                'coordinates': [{
                     'start': int(start),
                     'end': int(end),
                     'index': 0
-                ],
+                }],
                 'type': biotype,
                 'strand': strand,
                 'meta': {}
@@ -805,7 +793,7 @@ def calculate_positions(dna, dna_subset):
 
 def order_search(coordinates, index):
     for i in range(len(coordinates)):
-        if coordinates[i]['order'] == index:
+        if int(coordinates[i]['order']) == int(index):
             return coordinates[i]
     return None
 
@@ -829,14 +817,19 @@ def locate_circular_rna_subcoordinates(circular_rna, chromosome, circ_rna_sequen
     coordinates = []
 
     identifier = circular_rna['identifier']
-    rna_start = circular_rna['start']
-    rna_end = circular_rna['end']
+    rna_start = circular_rna['meta']['region_start']
+    rna_end = circular_rna['meta']['region_end']
 
     if circular_rna['meta']['gen_length'] == circular_rna['meta']['spliced_seq_length']:
-        dna_string = get_sequence_from_ensembl(chromosome, rna_start + 1, rna_end)
+        circular_rna['coordinates'] = [{
+            'start': rna_start,
+            'end': rna_end,
+            'order': 0
+        }]
     else:
         dna_string = get_sequence_from_ensembl(chromosome, rna_start + 1, rna_end)
         real_rna = circ_rna_sequences[identifier]
+        real_rna_two = real_rna
 
         processing = True
         counter = 0
@@ -845,19 +838,17 @@ def locate_circular_rna_subcoordinates(circular_rna, chromosome, circ_rna_sequen
             if sub_string == None:
                 processing = False
             else:
-                start, end = calculate_positions(dna_string, real_rna)
+                start, end = calculate_positions(dna_string, sub_string)
                 coordinates.append({
                     'start': start,
                     'end': end,
                     'order': counter
                 })
-                print(len(sub_string))
                 real_rna = real_rna.replace(sub_string, f'|{counter}|')
             counter += 1
-    
-    remapped_coordinates = remap(real_rna, coordinates)
+        remapped_coordinates = remap(real_rna, coordinates)
+        circular_rna['coordinates'] = remapped_coordinates
 
-    circular_rna['coordinates'] = remapped_coordinates
     return circular_rna
 
 def generate_structural_variants(regions):
@@ -890,7 +881,7 @@ def generate_structural_variants(regions):
             mutated_rna = dna_to_rna(variant_dna)
         #   generate_rna_structure(identifier, rna_type, rna)
 
-def within_range(coordinates, variant_start, variant_end)
+def within_range(coordinates, variant_start, variant_end):
     for coordinate in coordinates:
         after_start = coordinate['start'] <= variant_start and coordinate['end'] >= variant_start
         before_end = coordinate['start'] <= variant_end and coordinate['end'] >= variant_end
@@ -1067,7 +1058,6 @@ def main():
     gene_name = 'FTO'
 
     make_directory(working_directory)
-
     condition = 'Growth retardation'
 
     condition_filename = '_'.join(condition.split(" "))
@@ -1090,6 +1080,7 @@ def main():
     sync_databases(working_directory, 'human-circdb.hg19.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
 
     sync_databases(working_directory, 'insulators-experimental.hg19.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
+    sync_databases(working_directory, 'circbase_sequences.fasta', 'http://www.circbase.org/download/human_hg19_circRNAs_putative_spliced_sequence.fa.gz', True)
     #sync_databases(working_directory, 'insulators-computational.hg19.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
     variants = []
@@ -1103,12 +1094,19 @@ def main():
     #for variant in variants:
     #    print(variant)
     regions = []
+    rnas = []
 
-    nc_rnas = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_rna_central.json', query_rnacentral, [gene_name])
-    filtered_nc_rnas = filter_nc_rnas(chromosome, nc_rnas)
-    
-    sno_rnas = extract_sno_rnas(f'./{working_directory}/snodb.tsv', chromosome, gene_name)
-    regions += dedup_regions( sno_rnas + filtered_nc_rnas )
+
+    #computational_insulators = extract_insulators(f'./{working_directory}/insulators-computational.hg19.txt', gene_name, chromosome)
+    #regions += dedup_regions(computational_insulators)
+
+    experimental_insulators = extract_insulators(f'./{working_directory}/insulators-experimental.hg19.txt', gene_name, chromosome)
+    regions += experimental_insulators
+
+    enhancers = []
+    for enhancer_path in associated_enhancer_paths:
+        enhancers = enhancers + extract_enhancers(working_directory, enhancer_path, gene_id, chromosome)
+    regions += enhancers
 
     features = extract_genecode_regions(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
     regions += features
@@ -1120,21 +1118,23 @@ def main():
     promoters = extract_promoters(f'./{working_directory}/Hs_EPDnew.bed', gene_name)
     regions += promoters
 
-    circ_rna_sequences = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_circ_rna_sequences.json', get_circ_rna_sequences, [] )
-    circular_rnas = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_circ_rnas.json', extract_circular_rnas, [f'./{working_directory}/human-circdb.hg19.txt', gene_name, chromosome])
 
-    #regions += dedup_regions(circular_rnas)
+    nc_rnas = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_rna_central.json', query_rnacentral, [gene_name])
+    filtered_nc_rnas = filter_nc_rnas(chromosome, nc_rnas)
 
-    #computational_insulators = extract_insulators(f'./{working_directory}/insulators-computational.hg19.txt', gene_name, chromosome)
-    #regions += dedup_regions(computational_insulators)
+    regions += filtered_nc_rnas
+    rnas += filtered_nc_rnas
 
-    experimental_insulators = extract_insulators(f'./{working_directory}/insulators-experimental.hg19.txt', gene_name, chromosome)
-    regions = regions + dedup_regions(experimental_insulators)
+    sno_rnas = extract_sno_rnas(f'./{working_directory}/snodb.tsv', chromosome, gene_name)
+    
+    regions += sno_rnas
+    rnas += sno_rnas
 
-    enhancers = []
-    for enhancer_path in associated_enhancer_paths:
-        enhancers = enhancers + extract_enhancers(working_directory, enhancer_path, gene_id, chromosome)
-    regions += dedup_regions(enhancers)
+
+    circ_rna_sequences = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_circ_rna_sequences.json', load_fasta_file, [f'./{working_directory}/circbase_sequences.fasta'] )
+    circular_rnas = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_circ_rnas.json', extract_circular_rnas, [f'./{working_directory}/human-circdb.hg19.txt', gene_name, chromosome, circ_rna_sequences])
+
+    #regions += circular_rnas
     
     overlap_variant_regions, unique_overlap_variant_regions = count_overlapping_variant_frequencies(regions, variants)
     regional_frequencies, region_type_lengths = count_emperical_regional_variant_frequencies(regions, variants)
@@ -1143,6 +1143,7 @@ def main():
     #bed_file_name = write_regions_to_bed(gene_name, chromosome, regions)
     #bed_to_indexed_bam(bed_file_name)
 
+    code = '''
     region_lengths = {}
     for region in region_type_lengths:
         print(region)
@@ -1191,4 +1192,7 @@ def main():
         print('Dependent (reject H0)')
     else:
         print('Independent (H0 holds true)')
+    
+
+    '''
 main()

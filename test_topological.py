@@ -233,9 +233,14 @@ import requests
 #start, end = calculate_positions(dna, subset)
 #print(start, end)
 
+
 def order_search(coordinates, index):
     for i in range(len(coordinates)):
-        if coordinates[i]['order'] == index:
+        print('index')
+        print(i)
+        print(coordinates[i]['order'])
+        print(coordinates[i]['order'] == index)
+        if int(coordinates[i]['order']) == int(index):
             return coordinates[i]
     return None
 
@@ -243,9 +248,14 @@ def remap(real_rna, coordinates):
     remapped_coordinates = []
     orders = real_rna[1:-1].split("||")
 
+    print(orders)
     for counter in range(len(coordinates)):
+        print(counter)
         order = orders[counter]
+        print(order)
         coordinate = order_search(coordinates, order)
+        print(coordinate)
+        print(counter)
         coordinate['order'] = counter
         remapped_coordinates.append(coordinate)
 
@@ -258,15 +268,16 @@ coordinates = [
     {'start': 2000, 'end': 2020, 'order': 4},
 ]
 
-remap('|4||3||1||2|', coordinates)
+print(remap('|4||3||1||2|', coordinates))
 
-#def get_sequence_from_ensembl(chromosome, start, end):
-#    server = "https://rest.ensembl.org"
-#    ext = f"/sequence/region/human/{chromosome}:{start}..{end}:1?coord_system_version=GRCh37"
-#    
-#    r = requests.get(server+ext, headers={ "Content-Type" : "text/x-fasta"})
-#    return r.text
+def get_sequence_from_ensembl(chromosome, start, end):
+    server = "https://rest.ensembl.org"
+    ext = f"/sequence/region/human/{chromosome}:{start}..{end}:1?coord_system_version=GRCh37"
+    
+    r = requests.get(server+ext, headers={ "Content-Type" : "text/x-fasta"})
+    return r.text
 
+print(get_sequence_from_ensembl('chr1', 5, 8))
 
 #location = 'chr1:-'
 #data = 2	5 ,6 (7)	135, 428	0, 5936
@@ -299,3 +310,13 @@ remap('|4||3||1||2|', coordinates)
 #test_deletion_mutation()
 #test_snp_mutation()
 #test_insertion_mutation()
+
+
+
+def calculate_positions(dna, dna_subset):
+    subset_length = len(dna_subset)
+    start = dna.index(dna_subset) + 1
+    end = start + subset_length - 1
+    return start, end
+
+print(calculate_positions('AAAAGGGGAAAA', 'GGGG'))
