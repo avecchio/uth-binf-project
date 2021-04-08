@@ -188,7 +188,6 @@ def get_clinvar_entry(id, condition):
             locations = record['SimpleAllele']['Location']['SequenceLocation']
 
             if is_condition:
-                print(len(locations))
                 for location in locations:                
                         if location['@Assembly'] == 'GRCh38':
                             print('adding')
@@ -548,7 +547,6 @@ def extract_genecode_regions(file_path, ensembl_gene_id):
                         'meta': {}
                     })
 
-    print(features_dict)
     return features
 
 def awk_gff_extract(feature_type):
@@ -892,19 +890,20 @@ def within_range(coordinates, variant_start, variant_end):
 def count_overlapping_variant_frequencies(regions, variants):
     overlap_variant_regions = {}
     unique_overlap_variant_regions = {}
+    print(len(variants))
     for variant in variants:
         regions_tracker = []
         for region in regions:
-            print(region)
             within = within_range(region['coordinates'], variant['start'], variant['stop'])
             if within:
                 regions_tracker.append(region['type'])
-        if str(regions_tracker) not in overlap_variant_regions:
+        print(regions_tracker)
+        if str(len(regions_tracker)) not in overlap_variant_regions:
             overlap_variant_regions[str(len(regions_tracker))] = 0
         overlap_variant_regions[str(len(regions_tracker))] += 1
 
         unique_variant_regions = get_unique_items(regions_tracker)
-        if str(unique_variant_regions) not in unique_overlap_variant_regions:
+        if str(len(unique_variant_regions)) not in unique_overlap_variant_regions:
             unique_overlap_variant_regions[str(len(unique_variant_regions))] = 0
         unique_overlap_variant_regions[str(len(unique_variant_regions))] += 1
 
@@ -1171,6 +1170,7 @@ def main():
             counts = len(regional_frequencies[region_type][key]['variants'])
             regional_frequency_counts[region_type] += counts
 
+    print(unique_overlap_variant_regions)
     plot_bar_chart(regional_frequency_counts, 'Regions', 'Region Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png')
     plot_bar_chart(overlap_variant_regions, 'Variants', 'Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_overlap_variants.png')
     plot_bar_chart(unique_overlap_variant_regions, 'Variants', 'Non Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_non_overlap_variants.png')
