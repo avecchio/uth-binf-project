@@ -856,27 +856,29 @@ def generate_structural_variants(regions):
         rna_identifier = rna_region['region']['identifier']
         rna_type = rna_region['region']['type']
 
+        print(rna_identifier)
         dna = ''
         for coordinate in rna_region['coordinates']:
             rna_start = coordinate['start']
             rna_end = coordinate['end']
             dna += get_sequence_from_ensembl(chromosome, rna_start, rna_end)
 
+        print(dna)
         #rna = dna_to_rna(dna)
         #generate_rna_structure(identifier, rna_type, rna)
 
-        for variant in rna_region['variants']:
-            variant_dna = ''
-            for coordinate in rna_region['coordinates']:
-                after_start = coordinate['start'] <= variant['start'] and coordinate['end'] >= variant['start']
-                before_end = coordinate['start'] <= variant['stop'] and coordinate['end'] >= variant['stop']
-                if after_start and before_end:
-                    dna += get_sequence_from_ensembl(chromosome, coordinate['start'], coordinate['end'])
-                    # need to adjust start/end points to zero pos
-                    adjusted_start = variant['start'] - coordinate['start']
-                    adjusted_end = variant['stop'] - coordinate['end'] - 1
-                    variant_dna += mutate_dna(adjusted_start, adjusted_end, variant['alternate_allele'], dna)
-            mutated_rna = dna_to_rna(variant_dna)
+        #for variant in rna_region['variants']:
+        #    variant_dna = ''
+        #    for coordinate in rna_region['coordinates']:
+        #        after_start = coordinate['start'] <= variant['start'] and coordinate['end'] >= variant['start']
+        #        before_end = coordinate['start'] <= variant['stop'] and coordinate['end'] >= variant['stop']
+        #        if after_start and before_end:
+        #            dna += get_sequence_from_ensembl(chromosome, coordinate['start'], coordinate['end'])
+        #            # need to adjust start/end points to zero pos
+        #            adjusted_start = variant['start'] - coordinate['start']
+        #            adjusted_end = variant['stop'] - coordinate['end'] - 1
+        #            variant_dna += mutate_dna(adjusted_start, adjusted_end, variant['alternate_allele'], dna)
+        #    mutated_rna = dna_to_rna(variant_dna)
         #   generate_rna_structure(identifier, rna_type, rna)
 
 def within_range(coordinates, variant_start, variant_end):
@@ -890,14 +892,12 @@ def within_range(coordinates, variant_start, variant_end):
 def count_overlapping_variant_frequencies(regions, variants):
     overlap_variant_regions = {}
     unique_overlap_variant_regions = {}
-    print(len(variants))
     for variant in variants:
         regions_tracker = []
         for region in regions:
             within = within_range(region['coordinates'], variant['start'], variant['stop'])
             if within:
                 regions_tracker.append(region['type'])
-        print(regions_tracker)
         if str(len(regions_tracker)) not in overlap_variant_regions:
             overlap_variant_regions[str(len(regions_tracker))] = 0
         overlap_variant_regions[str(len(regions_tracker))] += 1
@@ -1087,12 +1087,18 @@ def main():
     sync_databases(working_directory, 'circbase_sequences.fasta', 'http://www.circbase.org/download/human_hg19_circRNAs_putative_spliced_sequence.fa.gz', True)
     #sync_databases(working_directory, 'insulators-computational.hg19.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
+    db_stats = {}
+
     variants = []
     gwas_snps = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_gwas_variants.json', query_gwas, [gene_name, condition])
     variants += gwas_snps
 
+    db_stats['gwas'] = len(gwas_snps)
+
     ncbi_clinical_variants = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_clinical_variants.json', get_ncbi_clinical_variants, [gene_name, condition])
     variants += ncbi_clinical_variants
+
+    db_stats['clinvar'] = len(ncbi_clinical_variants)
 
     #print(len(variants))
     #for variant in variants:
@@ -1107,30 +1113,48 @@ def main():
     experimental_insulators = extract_insulators(f'./{working_directory}/insulators-experimental.hg19.txt', gene_name, chromosome)
     regions += experimental_insulators
 
+    db_stats['insulators'] = len(experimental_insulators)
+
     enhancers = []
     for enhancer_path in associated_enhancer_paths:
         enhancers = enhancers + extract_enhancers(working_directory, enhancer_path, gene_id, chromosome)
     regions += enhancers
 
+    db_stats['enhancers'] = len(enhancers)
+
+
     features = extract_genecode_regions(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
     regions += features
+
+    db_stats['cds'] = len(enhancers)
+    db_stats['utr3'] = len(enhancers)
+    db_stats['utr5'] = len(enhancers)
 
     #exons = read_bed_file('exon', chromosome, gene_start, gene_end, exon_bed_path)
     introns = read_bed_file('intron', chromosome, gene_start, gene_end, intron_bed_path)
     regions += introns
+
+    db_stats['introns'] = len(introns)
+
     
     promoters = extract_promoters(f'./{working_directory}/Hs_EPDnew.bed', gene_name)
     regions += promoters
 
+    db_stats['promoters'] = len(promoters)
+
 
     nc_rnas = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_rna_central.json', query_rnacentral, [gene_name])
     filtered_nc_rnas = filter_nc_rnas(chromosome, nc_rnas)
+
+    db_stats['rna_central'] = len(filtered_nc_rnas)
 
     regions += filtered_nc_rnas
     rnas += filtered_nc_rnas
 
     sno_rnas = extract_sno_rnas(f'./{working_directory}/snodb.tsv', chromosome, gene_name)
     
+    db_stats['sno_rnas'] = len(sno_rnas)
+
     regions += sno_rnas
     rnas += sno_rnas
 
@@ -1138,7 +1162,8 @@ def main():
     circ_rna_sequences = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_circ_rna_sequences.json', load_fasta_file, [f'./{working_directory}/circbase_sequences.fasta'] )
     circular_rnas = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_circ_rnas.json', extract_circular_rnas, [f'./{working_directory}/human-circdb.hg19.txt', gene_name, chromosome, circ_rna_sequences])
 
-    #regions += circular_rnas
+    db_stats['circbase'] = len(circular_rnas)
+    regions += circular_rnas
     
     overlap_variant_regions, unique_overlap_variant_regions = count_overlapping_variant_frequencies(regions, variants)
     regional_frequencies, region_type_lengths = count_emperical_regional_variant_frequencies(regions, variants)
@@ -1149,18 +1174,17 @@ def main():
 
     region_lengths = {}
     for region in region_type_lengths:
-        print(region)
         region_lengths[region] = 0
         merged_regions = merge_regions(region_type_lengths[region])
         for merged_region in merged_regions:
             region_lengths[region] += abs(merged_region['end'] - merged_region['start'] + 1)
 
-    #print(region_lengths)
+    variant_counts = sum(regional_frequencies.values()) # len(variants)
     variant_region_expected_frequencies = {}
     total_lengths = sum(list(region_lengths.values()))
     for region in region_lengths:
         length_proportion = region_lengths[region] / total_lengths
-        variant_region_expected_frequencies[region] = len(variants) * length_proportion
+        variant_region_expected_frequencies[region] = variant_counts * length_proportion
 
     regional_frequency_counts = {}
     for region_type in regional_frequencies:
@@ -1170,11 +1194,21 @@ def main():
             counts = len(regional_frequencies[region_type][key]['variants'])
             regional_frequency_counts[region_type] += counts
 
+    print(regional_frequency_counts)
+    print(overlap_variant_regions)
     print(unique_overlap_variant_regions)
+    print(variant_region_expected_frequencies)
     plot_bar_chart(regional_frequency_counts, 'Regions', 'Region Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png')
     plot_bar_chart(overlap_variant_regions, 'Variants', 'Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_overlap_variants.png')
     plot_bar_chart(unique_overlap_variant_regions, 'Variants', 'Non Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_non_overlap_variants.png')
     #double_bar_chart(variant_regions, variant_region_expected_frequencies)
+
+    #double_bar_chart(regional_frequencies, variant_region_expected_frequencies)
+
+    print('dbstats')
+    for stat in db_stats
+        stat_val = db_stats[stat]
+        print(f'> {stat}: {stat_val}')
 
     print('chisquare')
 
