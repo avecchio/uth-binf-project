@@ -87,16 +87,47 @@ def load_fasta_file(params):
         data[identifier] = str(record.seq)
     return data
 
-def plot_bar_chart(frequencies_dict, xlabel, ylabel, title, filename):
+def convert_to_int(item):
+    try:
+        print(item)
+        return int(item)
+    except:
+        return item
 
-    data = [list(frequencies_dict.values())]
+def capitalize_words(phrase):
+    return ' '.join([x.capitalize() for x in phrase.split(" ")])
 
-    data_frame = pd.DataFrame(data,
-                    columns=list(frequencies_dict.keys()))
+def plot_bar_chart(frequencies_dict, xlabel, ylabel, title, filename, order_key, rotate):
+
+    data_objects = []
+
+    for key in frequencies_dict:
+        data_objects.append({
+            'Key': key,
+            'Value': frequencies_dict[key],
+            'Idx': convert_to_int(key)
+        })
+
+    sorted_df = pd.DataFrame(data_objects).sort_values('Idx')
+
+    keys = list(frequencies_dict.keys())
+    labels = [capitalize_words(x.replace("_", " ")) for x in keys]
+    sorted_labels = sorted(labels, key=convert_to_int)
+
 
     sns.set_theme(style="whitegrid")
-    sns_plot = sns.barplot(data=data_frame)
+
+    fig_dims = (6,6)
+    fig, ax = plt.subplots(figsize=fig_dims)
+
+    sns_plot = sns.barplot(data=sorted_df, x='Key', y='Value', ax=ax)
+
     sns_plot.set(xlabel=xlabel, ylabel=ylabel, title=title)
+    if rotate:
+        sns_plot.set_xticklabels(sorted_labels, fontsize=10, rotation=30)
+    else:
+        sns_plot.set_xticklabels(sorted_labels, fontsize=10)
+    #sns_plot.set(rc={'figure.figsize':(11.7, 8.27)})
     sns_plot.get_figure().savefig(filename)
 
 def convert_hg19_to_hg38(chromosome, coordinate):
@@ -534,7 +565,12 @@ def extract_genecode_regions(file_path, ensembl_gene_id):
                 if is_type and (ensembl_gene_id in gene_id):        
                     if biotype not in features_dict:
                         features_dict[biotype] = 0
-                    features_dict[biotype] += 1            
+                    features_dict[biotype] += 1
+                    rn_biotype = biotype
+                    if biotype == 'three_prime_UTR':
+                        rn_biotype = "3' UTR"
+                    elif biotype == 'five_prime_UTR':
+                        rn_biotype = "5' UTR"
                     features.append({
                         'identifier': identifier,
                         'coordinates': [{
@@ -542,7 +578,7 @@ def extract_genecode_regions(file_path, ensembl_gene_id):
                             'end': int(end),
                             'index': 0
                         }],
-                        'type': biotype,
+                        'type': rn_biotype,
                         'strand': '+',
                         'meta': {}
                     })
@@ -1195,7 +1231,7 @@ def main():
 
     filtered_rnas = filter_rnas(regional_frequencies)
     print(filtered_rnas)
-    generate_structural_variants(chromosome, filtered_rnas)
+    #generate_structural_variants(chromosome, filtered_rnas)
 
     #bed_file_name = write_regions_to_bed(gene_name, chromosome, regions)
     #bed_to_indexed_bam(bed_file_name)
@@ -1222,13 +1258,13 @@ def main():
         length_proportion = region_lengths[region] / total_lengths
         variant_region_expected_frequencies[region] = variant_counts * length_proportion
 
-    #print(regional_frequency_counts)
-    #print(overlap_variant_regions)
-    #print(unique_overlap_variant_regions)
-    #print(variant_region_expected_frequencies)
-    plot_bar_chart(regional_frequency_counts, 'Regions', 'Region Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png')
-    plot_bar_chart(overlap_variant_regions, 'Variants', 'Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_overlap_variants.png')
-    plot_bar_chart(unique_overlap_variant_regions, 'Variants', 'Non Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_non_overlap_variants.png')
+    print(regional_frequency_counts)
+    print(overlap_variant_regions)
+    print(unique_overlap_variant_regions)
+    print(variant_region_expected_frequencies)
+    plot_bar_chart(regional_frequency_counts, 'Regions', 'Variant Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png', '', True)
+    plot_bar_chart(overlap_variant_regions, 'Frequency of Overlapping Regions', 'Variant Frequency', 'Frequency of Variants in Overlapping Regions', 'unique_overlap_variants.png', '', False)
+    plot_bar_chart(unique_overlap_variant_regions, 'Frequency of Unique Overlapping Regions', 'Variant Frequency', 'Frequency of Variants in Unique Overlapping Regions', 'unique_non_overlap_variants.png', '', False)
     #double_bar_chart(variant_regions, variant_region_expected_frequencies)
 
     #double_bar_chart(regional_frequencies, variant_region_expected_frequencies)
