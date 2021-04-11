@@ -89,7 +89,6 @@ def load_fasta_file(params):
 
 def convert_to_int(item):
     try:
-        print(item)
         return int(item)
     except:
         return item
@@ -892,45 +891,59 @@ def locate_circular_rna_subcoordinates(circular_rna, chromosome, circ_rna_sequen
 
 def generate_structural_variants(chromosome, rna_regions):
     rna_directory = 'rna_struct'
-    paths = {}
+    struct_paths = {}
     for rna_region in rna_regions:
         #print(rna_region['region'])
         rna_identifier = rna_region['region']['identifier'].replace("/", "").replace("\\", "").replace("@", "").replace("+", "").replace(",", "").replace("-", "")
         rna_type = rna_region['region']['type']
 
+        print('=================')
         print(rna_identifier)
+        print(len(rna_region['variants']))
         dna = ''
+
         for coordinate in rna_region['region']['coordinates']:
             rna_start = coordinate['start']
             rna_end = coordinate['end']
             dna += get_sequence_from_ensembl(chromosome, rna_start + 1, rna_end)
-
-        print(len(dna))
+        print('main dna')
+        print(dna)
         rna = dna_to_rna(dna)
+        print('normal length: ' + str(len(rna)))
+
         unmutated_rna_path = generate_rna_structure(rna_identifier, rna_directory, rna_type, rna)
-        paths[unmutated_rna_path] = {
+        struct_paths[unmutated_rna_path] = {
             'id': rna_identifier,
             'length': len(dna)
         }
-        paths[unmutated_rna_path]['sub_paths'] = []
+        struct_paths[unmutated_rna_path]['sub_paths'] = []
         for variant in rna_region['variants']:
             variant_dna = ''
             for coordinate in rna_region['region']['coordinates']:
+                dna_segment = get_sequence_from_ensembl(chromosome, coordinate['start'] + 1, coordinate['end'])
+                print(dna_segment)
                 after_start = coordinate['start'] <= variant['start'] and coordinate['end'] >= variant['start']
                 before_end = coordinate['start'] <= variant['stop'] and coordinate['end'] >= variant['stop']
                 if after_start and before_end:
-                    dna += get_sequence_from_ensembl(chromosome, coordinate['start'], coordinate['end'])
                     # need to adjust start/end points to zero pos
                     adjusted_start = variant['start'] - coordinate['start']
-                    adjusted_end = variant['stop'] - coordinate['end'] - 1
-                    variant_dna += mutate_dna(adjusted_start, adjusted_end, variant['alternate_allele'], dna)
+                    adjusted_end = variant['stop'] - coordinate['start']
+                    print(variant['start'], variant['stop'])
+                    print(adjusted_start, adjusted_end)
+                    variant_dna += mutate_dna(adjusted_start, adjusted_end, variant['alternate_allele'], dna_segment)
+                else:
+                    variant_dna += dna_segment
             mutated_rna = dna_to_rna(variant_dna)
+            print('stuff')
+            print(variant['reference_allele'])
+            print(variant['alternate_allele'])
+            print('mut rna length')
+            print(len(mutated_rna))
+            print(mutated_rna)
             mutated_rna_path = generate_rna_structure(rna_identifier, rna_directory, rna_type, mutated_rna)
-            paths[unmutated_rna_path]['sub_paths'].append(mutated_rna_path)
-
+            struct_paths[unmutated_rna_path]['sub_paths'].append(mutated_rna_path)
     with open('structural_paths.json', 'w') as outfile:
-        json_str = json.dumps(paths, default = date_converter)
-        outfile.write(json_str)
+        json.dump(struct_paths, outfile)
 
 def within_range(coordinates, variant_start, variant_end):
     for coordinate in coordinates:
@@ -1230,8 +1243,8 @@ def main():
     variant_regions = count_statistical_regional_variant_frequencies(regions, variants)
 
     filtered_rnas = filter_rnas(regional_frequencies)
-    print(filtered_rnas)
-    #generate_structural_variants(chromosome, filtered_rnas)
+
+    generate_structural_variants(chromosome, filtered_rnas)
 
     #bed_file_name = write_regions_to_bed(gene_name, chromosome, regions)
     #bed_to_indexed_bam(bed_file_name)
