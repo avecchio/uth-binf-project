@@ -675,9 +675,10 @@ def generate_rna_structure(identifier, directory, rna_type, rna):
 
     with open(dbn_file, 'r') as reader:
         lines = reader.readlines()
-        lines[2] = lines[2].split(" ")[0]
-        with open(dbn_file, 'w') as writer:
-            writer.write(''.join(lines))
+        if len(lines) > 2:
+            lines[2] = lines[2].split(" ")[0]
+            with open(dbn_file, 'w') as writer:
+                writer.write(''.join(lines))
 
     os.system(f'cp bpRNA.pl {structure_path}')
     os.system(f'cd {structure_path} && cpanm Graph && perl bpRNA.pl {identifier}.dbn && rm bpRNA.pl')
@@ -802,8 +803,9 @@ def remap(real_rna, coordinates):
     for counter in range(len(coordinates)):
         order = orders[counter]
         coordinate = order_search(coordinates, order)
-        coordinate['order'] = counter
-        remapped_coordinates.append(coordinate)
+        new_coordinate = copy.deepcopy(coordinate)
+        new_coordinate['order'] = counter
+        remapped_coordinates.append(new_coordinate)
 
     return remapped_coordinates
 
@@ -826,6 +828,8 @@ def locate_circular_rna_subcoordinates(circular_rna, chromosome, circ_rna_sequen
         }]
     else:
         dna_string = get_sequence_from_ensembl(chromosome, rna_start + 1, rna_end)
+        #print(dna_string)
+        #print(rna_start, rna_end)
         real_rna = circ_rna_sequences[identifier]
         real_rna_two = real_rna
 
@@ -838,48 +842,59 @@ def locate_circular_rna_subcoordinates(circular_rna, chromosome, circ_rna_sequen
             else:
                 start, end = calculate_positions(dna_string, sub_string)
                 coordinates.append({
-                    'start': start,
-                    'end': end,
+                    'start': rna_start + start - 1,
+                    'end': rna_start + end - 1,
                     'order': counter
                 })
                 real_rna = real_rna.replace(sub_string, f'|{counter}|')
             counter += 1
         remapped_coordinates = remap(real_rna, coordinates)
+        print(remapped_coordinates)
         circular_rna['coordinates'] = remapped_coordinates
 
     return circular_rna
 
-def generate_structural_variants(regions):
-    rna_regions = regions
+def generate_structural_variants(chromosome, rna_regions):
+    rna_directory = 'rna_struct'
+    paths = {}
     for rna_region in rna_regions:
-        print(rna_region['region'])
-        rna_identifier = rna_region['region']['identifier']
+        #print(rna_region['region'])
+        rna_identifier = rna_region['region']['identifier'].replace("/", "").replace("\\", "").replace("@", "").replace("+", "").replace(",", "").replace("-", "")
         rna_type = rna_region['region']['type']
 
         print(rna_identifier)
         dna = ''
-        for coordinate in rna_region['coordinates']:
+        for coordinate in rna_region['region']['coordinates']:
             rna_start = coordinate['start']
             rna_end = coordinate['end']
-            dna += get_sequence_from_ensembl(chromosome, rna_start, rna_end)
+            dna += get_sequence_from_ensembl(chromosome, rna_start + 1, rna_end)
 
-        print(dna)
-        #rna = dna_to_rna(dna)
-        #generate_rna_structure(identifier, rna_type, rna)
+        print(len(dna))
+        rna = dna_to_rna(dna)
+        unmutated_rna_path = generate_rna_structure(rna_identifier, rna_directory, rna_type, rna)
+        paths[unmutated_rna_path] = {
+            'id': rna_identifier,
+            'length': len(dna)
+        }
+        paths[unmutated_rna_path]['sub_paths'] = []
+        for variant in rna_region['variants']:
+            variant_dna = ''
+            for coordinate in rna_region['region']['coordinates']:
+                after_start = coordinate['start'] <= variant['start'] and coordinate['end'] >= variant['start']
+                before_end = coordinate['start'] <= variant['stop'] and coordinate['end'] >= variant['stop']
+                if after_start and before_end:
+                    dna += get_sequence_from_ensembl(chromosome, coordinate['start'], coordinate['end'])
+                    # need to adjust start/end points to zero pos
+                    adjusted_start = variant['start'] - coordinate['start']
+                    adjusted_end = variant['stop'] - coordinate['end'] - 1
+                    variant_dna += mutate_dna(adjusted_start, adjusted_end, variant['alternate_allele'], dna)
+            mutated_rna = dna_to_rna(variant_dna)
+            mutated_rna_path = generate_rna_structure(rna_identifier, rna_directory, rna_type, mutated_rna)
+            paths[unmutated_rna_path]['sub_paths'].append(mutated_rna_path)
 
-        #for variant in rna_region['variants']:
-        #    variant_dna = ''
-        #    for coordinate in rna_region['coordinates']:
-        #        after_start = coordinate['start'] <= variant['start'] and coordinate['end'] >= variant['start']
-        #        before_end = coordinate['start'] <= variant['stop'] and coordinate['end'] >= variant['stop']
-        #        if after_start and before_end:
-        #            dna += get_sequence_from_ensembl(chromosome, coordinate['start'], coordinate['end'])
-        #            # need to adjust start/end points to zero pos
-        #            adjusted_start = variant['start'] - coordinate['start']
-        #            adjusted_end = variant['stop'] - coordinate['end'] - 1
-        #            variant_dna += mutate_dna(adjusted_start, adjusted_end, variant['alternate_allele'], dna)
-        #    mutated_rna = dna_to_rna(variant_dna)
-        #   generate_rna_structure(identifier, rna_type, rna)
+    with open('structural_paths.json', 'w') as outfile:
+        json_str = json.dumps(paths, default = date_converter)
+        outfile.write(json_str)
 
 def within_range(coordinates, variant_start, variant_end):
     for coordinate in coordinates:
@@ -1057,6 +1072,14 @@ def merge_regions(region_edges):
                 start = None
     return edges
 
+def filter_rnas(regional_frequencies):
+    rnas = []
+    for region in regional_frequencies:
+        if 'rna' in region.lower():
+            for identifier in regional_frequencies[region]:
+                rnas.append(regional_frequencies[region][identifier])
+    return rnas
+
 def main():
     working_directory = 'data'
     gene_name = 'FTO'
@@ -1164,10 +1187,15 @@ def main():
 
     db_stats['circbase'] = len(circular_rnas)
     regions += circular_rnas
+    rnas += circular_rnas
     
     overlap_variant_regions, unique_overlap_variant_regions = count_overlapping_variant_frequencies(regions, variants)
     regional_frequencies, region_type_lengths = count_emperical_regional_variant_frequencies(regions, variants)
     variant_regions = count_statistical_regional_variant_frequencies(regions, variants)
+
+    filtered_rnas = filter_rnas(regional_frequencies)
+    print(filtered_rnas)
+    generate_structural_variants(chromosome, filtered_rnas)
 
     #bed_file_name = write_regions_to_bed(gene_name, chromosome, regions)
     #bed_to_indexed_bam(bed_file_name)
@@ -1179,13 +1207,6 @@ def main():
         for merged_region in merged_regions:
             region_lengths[region] += abs(merged_region['end'] - merged_region['start'] + 1)
 
-    variant_counts = sum(regional_frequencies.values()) # len(variants)
-    variant_region_expected_frequencies = {}
-    total_lengths = sum(list(region_lengths.values()))
-    for region in region_lengths:
-        length_proportion = region_lengths[region] / total_lengths
-        variant_region_expected_frequencies[region] = variant_counts * length_proportion
-
     regional_frequency_counts = {}
     for region_type in regional_frequencies:
         if region_type not in regional_frequency_counts:
@@ -1194,10 +1215,17 @@ def main():
             counts = len(regional_frequencies[region_type][key]['variants'])
             regional_frequency_counts[region_type] += counts
 
-    print(regional_frequency_counts)
-    print(overlap_variant_regions)
-    print(unique_overlap_variant_regions)
-    print(variant_region_expected_frequencies)
+    variant_counts = sum(regional_frequency_counts.values()) # len(variants)
+    variant_region_expected_frequencies = {}
+    total_lengths = sum(list(region_lengths.values()))
+    for region in region_lengths:
+        length_proportion = region_lengths[region] / total_lengths
+        variant_region_expected_frequencies[region] = variant_counts * length_proportion
+
+    #print(regional_frequency_counts)
+    #print(overlap_variant_regions)
+    #print(unique_overlap_variant_regions)
+    #print(variant_region_expected_frequencies)
     plot_bar_chart(regional_frequency_counts, 'Regions', 'Region Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png')
     plot_bar_chart(overlap_variant_regions, 'Variants', 'Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_overlap_variants.png')
     plot_bar_chart(unique_overlap_variant_regions, 'Variants', 'Non Overlapping Region Frequency', 'Variants in overlapping regions', 'unique_non_overlap_variants.png')
@@ -1206,14 +1234,14 @@ def main():
     #double_bar_chart(regional_frequencies, variant_region_expected_frequencies)
 
     print('dbstats')
-    for stat in db_stats
+    for stat in db_stats:
         stat_val = db_stats[stat]
         print(f'> {stat}: {stat_val}')
 
     print('chisquare')
 
     chi_square_data = [
-        list(variant_regions.values()),
+        list(regional_frequency_counts.values()),
         list(variant_region_expected_frequencies.values())
     ]
 

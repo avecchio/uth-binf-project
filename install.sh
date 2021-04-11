@@ -3,6 +3,7 @@ sudo apt-get install perl python3 python3-pip cpanminus wget autoconf automake l
 sudo apt-get install gcc make libbz2-dev zlib1g-dev libncurses5-dev libncursesw5-dev liblzma-dev
 
 cpanm Graph
+cpanm --local-lib=~/perl5 local::lib && eval $(perl -I ~/perl5/lib/perl5/ -Mlocal::lib)
 
 mkdir bin && cd bin
 wget https://www.tbi.univie.ac.at/RNA/download/sourcecode/2_4_x/ViennaRNA-2.4.17.tar.gz
