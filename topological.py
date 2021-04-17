@@ -23,6 +23,8 @@ import os
 import re
 import errno
 import seaborn as sns
+import difflib
+
 
 from scipy.stats import chisquare
 from liftover import get_lifter
@@ -1121,6 +1123,70 @@ def merge_regions(region_edges):
                 start = None
     return edges
 
+def get_structure_string(path):
+    with open(path) as f:
+        lines = f.readlines()
+        if len(lines) > 5:
+            return lines[5]
+        else:
+            return None
+
+def str_diff_percent(reference, mutant):
+    output_list = [li for li in difflib.ndiff(reference, mutant) if li[0] != ' ']
+    return min(len(output_list), len(reference)) / len(reference) * 100
+
+def count_structural_components(seq):
+    data = {}
+    cur_char = None
+    for character in seq:
+        if character != cur_char:
+            if character not in data:
+                data[character] = 0
+            data[character] += 1
+            cur_char = character
+    return data
+
+def remap_key(key):
+    if key == 'S':
+        return 'Stem'
+    elif key == 'M':
+        return 'Multiloop'
+    elif key == 'I':
+        return 'Interior Loop'
+    elif key == 'B':
+        return 'Bulges'
+    elif key == 'P':
+        return 'Pseudoknot'
+    elif key == 'H':
+        return 'Hairpin'
+    else:
+        return key
+
+def dictionary_to_frame(dictionary, datatype):
+    transforms = []
+    for key in dictionary:
+        transform = {}
+        transform['key'] = remap_key(key)
+        transform['value'] = dictionary[key]
+        transform['Forms'] = datatype
+        transforms.append(transform)
+    return transforms
+
+def compute_structural_statistics(paths):
+    reference_components = []
+    mutant_components = []
+    averages = []
+    for key in paths:
+        reference_path = key
+        reference_string = get_structure_string(reference_path)
+        reference_components += dictionary_to_frame(count_structural_components(reference_string), 'Consensus')
+        for mutant_path in paths[key]:
+            mutant_string = get_structure_string(mutant_path)
+            mutant_components += dictionary_to_frame(count_structural_components(mutant_string), 'Mutations')
+            averages.append(str_diff_percent(reference_string, mutant_string))
+    pandas_structure_components = pd.DataFrame(reference_components + mutant_components)
+    return averages, pandas_structure_components
+
 def filter_rnas(regional_frequencies):
     rnas = []
     for region in regional_frequencies:
@@ -1128,6 +1194,21 @@ def filter_rnas(regional_frequencies):
             for identifier in regional_frequencies[region]:
                 rnas.append(regional_frequencies[region][identifier])
     return rnas
+
+def arr_filter(arr_data, key, value):
+    return [[item] for item in arr_data if item[key] == value]
+
+def array_to_dataframe(numbers, col_name):
+    matrix_numbers = [[number] for number in numbers]
+    np_numbers = np.array(matrix_numbers)
+    return pd.DataFrame(data=matrix_numbers, columns=[col_name])
+
+def plot_histogram(data, xname, xlabel, ylabel, title, fname):
+    sns.set_theme(style="ticks", palette="pastel")
+    sns_plot = sns.histplot(data=data, x=xname, bins=10)
+    sns_plot.set(xlabel=xlabel, ylabel=ylabel, title=title)
+    sns_plot.get_figure().savefig(fname)
+
 
 def main():
     working_directory = 'data'
