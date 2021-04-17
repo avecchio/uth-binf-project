@@ -319,4 +319,4 @@ def calculate_positions(dna, dna_subset):
     end = start + subset_length - 1
     return start, end
 
-print(calculate_positions('AAAAGGGGAAAA', 'GGGG'))
+print(calculate_positions('TGGGGCTCCCACCCGCCGTCCTGTTGGGGAACTGCGGAGATTCACCCCAGC', 'CGCCGTCCTGTTGGGGAACTGCG'))

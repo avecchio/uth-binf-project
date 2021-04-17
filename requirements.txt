@@ -6,6 +6,6 @@ psycopg2==2.8.6
 liftover==1.1.10
 requests==2.25.1
 matplotlib==3.3.4
-scipy==1.6.2
-numpy==1.20.0
+scipy==1.5.4
+numpy==1.19.5
 psycopg2==2.8.6
