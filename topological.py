@@ -1177,13 +1177,16 @@ def compute_structural_statistics(paths):
     mutant_components = []
     averages = []
     for key in paths:
-        reference_path = key
-        reference_string = get_structure_string(reference_path)
-        reference_components += dictionary_to_frame(count_structural_components(reference_string), 'Consensus')
-        for mutant_path in paths[key]:
-            mutant_string = get_structure_string(mutant_path)
-            mutant_components += dictionary_to_frame(count_structural_components(mutant_string), 'Mutations')
-            averages.append(str_diff_percent(reference_string, mutant_string))
+        if ':' not in key:
+            reference_path = key
+            reference_string = get_structure_string(paths[key]['st_file'])
+            print(reference_string)
+            reference_components += dictionary_to_frame(count_structural_components(reference_string), 'Consensus')
+            for mutant_path in paths[key]['sub_paths']:
+                print(mutant_path)
+                mutant_string = get_structure_string(mutant_path['st_file'])
+                mutant_components += dictionary_to_frame(count_structural_components(mutant_string), 'Mutations')
+                averages.append(str_diff_percent(reference_string, mutant_string))
     pandas_structure_components = pd.DataFrame(reference_components + mutant_components)
     return averages, pandas_structure_components
 
