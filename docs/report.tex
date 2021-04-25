@@ -116,13 +116,6 @@ The GENECODE annotations provides coordinate data for exons, coding sequences (C
 
 Circular RNA databases, including CircBase stores only a single coordinate set (start and end position) which includes all spliced sequences found within the DNA in addition to extraneous genomic information. The sub coordinates of circular RNA which represents introns and exons that are a bi product of alternative splicing were obtained through an algorithmic process that is displayed in Figure 3. For this process, the Longest Common Subsequence algorithm locates a shared genomic sequence that exists in both the inclusive genomic sequence and the corresponding consensus RNA sequence provided by CircBase. The coordinates for this sequence are obtained and transformed to reflect the absolute coordinate found within the hg38 coordinate system. The shared sequence in the consensus RNA sequence is then replaced by a marker. This process is repeated until only markers remain. This process generates a set of sub coordinates of the introns and exons used to construct the representative circular RNA. The sub coordinate sets are then reindexed by means of the resulting markers to ensure proper ordering when reconstructing the consensus string for the structural analysis. 
 
-\begin{figure}[t]
-	\centering
-	\includegraphics[width=8cm]{circ-rna}
-	\caption{A demonstration of the formation of circular RNA from intron and exon biproducts of alternative splicing.
-	}
-	\label{fig:mesh1}
-\end{figure}
 
 \begin{figure}[t]
 	\centering
@@ -395,6 +388,47 @@ Zhou, J. X., & Li, X. (2021). Non-Coding RNAs in Hereditary Kidney Disorders. In
 
 \section{Supplementals} \label{s:supplementals}
 
+\subsection{
+\emph{Freq Analysis}} \label{s:conclusion}
+
+	\begin{figure}[t]
+	\centering
+	\includegraphics[width=8cm]{circ-rna}
+	\caption{A demonstration of the formation of circular RNA from intron and exon biproducts of alternative splicing.
+	}
+	\label{fig:mesh1}
+\end{figure}
+
+\subsection{
+\emph{Freq Analysis}} \label{s:conclusion}
+
+    \begin{table}[!hbt]
+      % Center the table
+      \begin{center}
+      % Fold Inductions
+      \caption{QtPCR Fold Inductions}
+      \label{tab:simParameters}
+      % Table itself: here we have two columns which are centered and have lines to the left, right and in the middle: |c|c|
+      \begin{tabular}{|c|c|}
+        \hline
+	  		# Region Types Intersected           & Frequency \\
+        \hline
+		1	& 14 \\
+        \hline
+		2	& 82 \\
+        \hline
+		3	& 20 \\
+        \hline
+		4	&  1 \\
+        \hline
+
+      \end{tabular}
+      \end{center}
+    \end{table}
+	
+	\subsection{
+\emph{Freq Analysis}} \label{s:conclusion}
+
     \begin{table}[!hbt]
       % Center the table
       \begin{center}
@@ -428,28 +462,6 @@ Zhou, J. X., & Li, X. (2021). Non-Coding RNAs in Hereditary Kidney Disorders. In
       \end{center}
     \end{table}
 
-    \begin{table}[!hbt]
-      % Center the table
-      \begin{center}
-      % Fold Inductions
-      \caption{QtPCR Fold Inductions}
-      \label{tab:simParameters}
-      % Table itself: here we have two columns which are centered and have lines to the left, right and in the middle: |c|c|
-      \begin{tabular}{|c|c|}
-        \hline
-	  		# Region Types Intersected           & Frequency \\
-        \hline
-		1	& 14 \\
-        \hline
-		2	& 82 \\
-        \hline
-		3	& 20 \\
-        \hline
-		4	&  1 \\
-        \hline
 
-      \end{tabular}
-      \end{center}
-    \end{table}
-	
+
 \end{document}
