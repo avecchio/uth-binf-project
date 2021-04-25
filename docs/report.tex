@@ -1,668 +1,282 @@
-% interactnlmsample.tex
-% v1.05 - August 2017
+\documentclass[11pt]{article}
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%\pdfminorversion=4
+	% NOTE: To produce blinded version, replace "0" with "1" below.
+	\newcommand{\blind}{0}
+	
+	%%%%%%% IISE Transactions margin specifications %%%%%%%%%%%%%%%%%%%
+	% DON'T change margins - should be 1 inch all around.
+	\addtolength{\oddsidemargin}{-.5in}%
+	\addtolength{\evensidemargin}{-.5in}%
+	\addtolength{\textwidth}{1in}%
+	\addtolength{\textheight}{1.3in}%
+	\addtolength{\topmargin}{-.8in}%
+    \makeatletter
+    \renewcommand\section{\@startsection {section}{1}{\z@}%
+                                       {-3.5ex \@plus -1ex \@minus -.2ex}%
+                                       {2.3ex \@plus.2ex}%
+                                       {\normalfont\fontfamily{phv}\fontsize{16}{19}\bfseries}}
+    \renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
+                                         {-3.25ex\@plus -1ex \@minus -.2ex}%
+                                         {1.5ex \@plus .2ex}%
+                                         {\normalfont\fontfamily{phv}\fontsize{14}{17}\bfseries}}
+    \renewcommand\subsubsection{\@startsection{subsubsection}{3}{\z@}%
+                                        {-3.25ex\@plus -1ex \@minus -.2ex}%
+                                         {1.5ex \@plus .2ex}%
+                                         {\normalfont\normalsize\fontfamily{phv}\fontsize{14}{17}\selectfont}}
+    \makeatother
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	%%%%% IISE Transactions package list %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\usepackage{amsmath}
+	\usepackage{graphicx}
+	\usepackage{enumerate}
+	\usepackage{natbib} %comment out if you do not have the package
+	\usepackage{url} % not crucial - just used below for the URL
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	%%%%% Author package list and commands %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%%%% Here are some examples %%%%%%%%%%%%%%
+	%	\usepackage{amsfonts, amsthm, latexsym, amssymb}
+	%	\usepackage{lineno}
+	%	\newcommand{\mb}{\mathbf}
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\begin{document}
+		
+			%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		\def\spacingset#1{\renewcommand{\baselinestretch}%
+			{#1}\small\normalsize} \spacingset{1}
+		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		
+    \title{Non Coding RNA in Growth Retardation}
+    \author{BMI 5330 - Term Project \\
+    Austin Vecchio \\
+    Spring 2021 }
+    \date{}
+    \maketitle
+		
+		
+	\begin{abstract}
+This document provides a \LaTeX \ template for \emph{IISE Transactions}. Your paper should be compiled in the following order: title; abstract; keywords; main text, including an introduction and a conclusion or summary; acknowledgments; declaration of interest statement; references; appendices (as appropriate). Figures and tables should be inserted into the text as close to first mention as possible (NOT appended to the end of the manuscript). In-text citations and the reference list must follow \emph{IISE Transactions} guidelines. Use 11 point font, 1 inch margins, and double-spacing for the manuscript. A typical paper for this journal should be no more than 30 pages in manuscript format, counting from the title page to references. Appendices should be included as supplemental online materials. Do not use footnotes. \emph{IISE Transactions} uses a double-blind review process. Please make sure that you submit the \textbf{blind version} of your manuscript, which does not contain any information identifying the authors.  This includes removing the authors information on the title page as well as the information that may be identifying in the Acknowledgment section. We thank you for your attention to these details.
+	\end{abstract}
+			
+	\noindent%
+	{\it Keywords:} \emph{IISE Transactions}; \LaTeX; Manuscript format; Taylor \& Francis.
 
-\documentclass[]{interact}
-
-\usepackage{epstopdf}% To incorporate .eps illustrations using PDFLaTeX, etc.
-\usepackage[caption=false]{subfig}% Support for small, `sub' figures and tables
-%\usepackage[nolists,tablesfirst]{endfloat}% To `separate' figures and tables from text if required
-%\usepackage[doublespacing]{setspace}% To produce a `double spaced' document if required
-%\setlength\parindent{24pt}% To increase paragraph indentation when line spacing is doubled
-
-\usepackage[numbers,sort&compress]{natbib}% Citation support using natbib.sty
-\bibpunct[, ]{[}{]}{,}{n}{,}{,}% Citation support using natbib.sty
-\renewcommand\bibfont{\fontsize{10}{12}\selectfont}% Bibliography support using natbib.sty
-\makeatletter% @ becomes a letter
-\def\NAT@def@citea{\def\@citea{\NAT@separator}}% Suppress spaces between citations using natbib.sty
-\makeatother% @ becomes a symbol again
-
-\theoremstyle{plain}% Theorem-like structures provided by amsthm.sty
-\newtheorem{theorem}{Theorem}[section]
-\newtheorem{lemma}[theorem]{Lemma}
-\newtheorem{corollary}[theorem]{Corollary}
-\newtheorem{proposition}[theorem]{Proposition}
-
-\theoremstyle{definition}
-\newtheorem{definition}[theorem]{Definition}
-\newtheorem{example}[theorem]{Example}
-
-\theoremstyle{remark}
-\newtheorem{remark}{Remark}
-\newtheorem{notation}{Notation}
-
-\begin{document}
-
-\articletype{ARTICLE TEMPLATE}% Specify the article type or omit as appropriate
-
-\title{Taylor \& Francis \LaTeX\ template for authors (\textsf{Interact} layout + NLM reference style)}
-
-\author{
-\name{A.~N. Author\textsuperscript{a}\thanks{CONTACT A.~N. Author. Email: latex.helpdesk@tandf.co.uk} and John Smith\textsuperscript{b}}
-\affil{\textsuperscript{a}Taylor \& Francis, 4 Park Square, Milton Park, Abingdon, UK; \textsuperscript{b}Institut f\"{u}r Informatik, Albert-Ludwigs-Universit\"{a}t, Freiburg, Germany}
-}
-
-\maketitle
-
-\begin{abstract}
-This template is for authors who are preparing a manuscript for a Taylor \& Francis journal using the \LaTeX\ document preparation system and the \texttt{interact} class file, which is available via selected journals' home pages on the Taylor \& Francis website.
-\end{abstract}
-
-\begin{keywords}
-Sections; lists; figures; tables; mathematics; fonts; references; appendices
-\end{keywords}
-
-
-\section{Introduction}
-
-In order to assist authors in the process of preparing a manuscript for a journal, the Taylor \& Francis `\textsf{Interact}' layout style has been implemented as a \LaTeXe\ class file based on the \texttt{article} document class. A \textsc{Bib}\TeX\ bibliography style file and a sample bibliography are also provided in order to assist with the formatting of your references.
-
-Commands that differ from or are provided in addition to standard \LaTeXe\ are described in this document, which is \emph{not} a substitute for a \LaTeXe\ tutorial.
-
-The \texttt{interactnlmsample.tex} file can be used as a template for a manuscript by cutting, pasting, inserting and deleting text as appropriate, using the preamble and the \LaTeX\ environments provided (e.g.\ \verb"\begin{abstract}", \verb"\begin{keywords}").
-
-
-\subsection{The \textsf{Interact} class file}\label{class}
-
-The \texttt{interact} class file preserves the standard \LaTeXe\ interface such that any document that can be produced using \texttt{article.cls} can also be produced with minimal alteration using the \texttt{interact} class file as described in this document.
-
-If your article is accepted for publication it will be typeset as the journal requires in Minion Pro and/or Myriad Pro. Since most authors will not have these fonts installed, the page make-up is liable to alter slightly with the change of font. Also, the \texttt{interact} class file produces only single-column format, which is preferred for peer review and will be converted to two-column format by the typesetter if necessary during preparation of the proofs. Please therefore do not try to match the typeset format exactly, but use the standard \LaTeX\ fonts instead and ignore details such as slightly long lines of text or figures/tables not appearing in exact synchronization with their citations in the text: these details will be dealt with by the typesetter. Similarly, it is unnecessary to spend time addressing warnings in the log file -- if your .tex file compiles to produce a PDF document that correctly shows how you wish your paper to appear, such warnings will not prevent your source files being imported into the typesetter's program.
-
-
-\subsection{Submission of manuscripts prepared using \emph{\LaTeX}}
-
-Manuscripts for possible publication should be submitted to the Editors for review as directed in the journal's Instructions for Authors, and in accordance with any technical instructions provided in the journal's ScholarOne Manuscripts or Editorial Manager site. Your \LaTeX\ source file(s), the class file and any graphics files will be required in addition to the final PDF version when final, revised versions of accepted manuscripts are submitted.
-
-Please ensure that any author-defined macros used in your article are gathered together in the preamble of your .tex file, i.e.\ before the \verb"\begin{document}" command. Note that if serious problems are encountered in the coding of a document (missing author-defined macros, for example), the typesetter may resort to rekeying it.
+	%\newpage
+	\spacingset{1.5} % DON'T change the spacing!
 
 
-\section{Using the \texttt{interact} class file}
+\section{Introduction and Background} \label{s:intro}
 
-For convenience, simply copy the \texttt{interact.cls} file into the same directory as your manuscript files (you do not need to install it in your \TeX\ distribution). In order to use the \texttt{interact} document class, replace the command \verb"\documentclass{article}" at the beginning of your document with the command \verb"\documentclass{interact}".
 
-The following document-class options should \emph{not} be used with the \texttt{interact} class file:
+Growth Retardation is an uncommon disease where the development of tissues or organs improperly develop. One study (Boisell et al., 2009) describes the physical observations of eight toddlers known to have a genetic mutation. Several conditions of which these toddlers were diagnosed with include: hypertonicity or postnatal microcephaly in the central nervous system, hypertrophic cardiomyopathy in the cardiovascular system. Other conditions listed in Boisell et al., (2009) were described as growth malformations such as cutis marmorata, brachydactyly or an umbilical hernia. The variety and severity of conditions impacted the lifespan such that all diagnosed with Growth Retardation lived no longer than the age of three (Boisell et al., 2009). Another study (Çağlayan et al., 2016), described the observations and analyses regarding a single five year old female. This female similarly experienced a series of developmental issues which included seizures, respiratory issues and growth malformations such as an asymmetric skull (Çağlayan et al., 2016). Boisell et al., (2009) and Çağlayan et al., (2016) are two of many genome wide association studies conducted to have associated Growth Retardation to genetic mutations found in the Fat Mass and Obesity associated (FTO) gene. The FTO protein is tentatively classified as an AlkB dioxygenase (Ferenc et al., 2020). This primary function of protein with this classification is to repair alkylated DNA and RNA. Although the FTO protein has been observed to repair alkylated DNA and RNA, this task was rarely performed (Ferenc et al., 2020). Thus, the primary function of the FTO protein remains unknown. 
+
+Genetic expression is a biochemical process for which a specified quantity of proteins are produced (Li et al., 2011) from a given gene such as FTO. In this process, RNA polymerase, binds to a promoter region in the DNA and is either strongly attracted to the promoter by an enhancer, or repelled by an insulator (Kolovos et al., 2012). The RNA polymerase transcribes specific regions of the DNA into messenger RNA (Li et al., 2011). Messenger RNA is then alternatively spliced into introns and exons by means of non coding RNA (Tazi et al., 2009). Only exons are fused in a specific order are to be translated into a chain of amino acids (Lam et al., 2021). The amino acid chain will fold in such a manner to form the resulting protein molecule (Dill et. Al, 1995). It has been described in literature such as Smith & Flodman (2018) that the genetic expression process can be disrupted by either mutations to the DNA. Disruptions in genetic expression result in either a variation in expression of the protein, or a non functional protein. 
+
+Non coding RNA is classified as RNA that is not translated into protein (Gibb et al., 2011). There exist numerous types of non coding RNA that regulate messenger RNA or are involved in post transcriptional modifications steps of genetic expression. Non coding RNA are classified based on size and a generic set of functions. Described in Macfarlane & Murphy, (2010), MicroRNA is a short nucleotide sequence of ~20bp that assembles into a RNA-induced silencing complex. This complex targets a specific messenger RNA for which to regulate the amount produced (Macfarlane & Murphy, 2010). Circular RNA is the only closed loop RNA in which the 5’ and 3’ ends fuse to form a circular loop (Yu & Kuo, 2019). Circular RNA is formed from introns or exons that are a bi product of alternative splicing. The general function of Circular RNA involves interactions (transport/decoy) of microRNA (Yu & Kuo, 2019). Long non coding RNA (Gibb et al., 2011) is a generic classification of non coding RNA that encompasses other variety of non coding RNA such as lincRNA. Most forms of long non coding RNA either perform regulatory functions of messenger RNA, or are involved in enzymatic reactions (Gibb et al., 2011). The individual functions of these RNAs are determined by both structure (secondary/tertiary) and structural components. Some examples of structural components in ncRNA include hairpins, stems, multi loops, and interior loops (Zampetaki et al., 2018). Examples of these structures can be viewedin Figure 1. 
+
+If any process within the expression of a gene is disrupted, an irregular amount of protein would be produced. This undesirable behavior would result in some form of illness. Two studies performed discovered that dysfunctional non coding RNA resulted in disease. The first study performed by Zhou & Li (2021) was an investigation into Hereditary Kidney Disorders that discovered mutations in either the PKD1 or PKD2 genes. These mutations alter the functionality in either long non coding RNA or microRNA (Zhou & Li, 2021). Thereby, these kidney disorders are a result of destructive behavior within the cell originating from these dysfunctional non coding RNA. Some examples reported in Zhou & Li (2021), describe the negative impact of these non coding RNA which includes the repression of expressing the PKD1 or PKD2 gene, defects in the mitochondrial metabolism or in severe circumstances, bring about apoptosis. The second study was a systematic review by Xu et al. (2021) for literature involving the dysregulation of extracellular vesicles that transport non coding RNA between cells. In this review, the authors amassed evidence of dysfunctional RNA resulting in neurodegenerative disorders. It was found that Long non coding RNAs were attributed to Parkinsons Disease, and both circular RNA and microRNA were linked to Alzheimer's disease (Xu et al., 2021). The results of the investigation found that dysfunctional Long non coding RNA, micro RNA or circular RNA that is transported via extra cellular vesicles are damaging to the cell such in such a manner as to cause neuro degenerative diseases (Xu et al., 2021). Thus, there exists significant experimental evidence of dysfunctional non coding RNA resulting in disease.  
+
+In 2018, a study by Giral & Kratzer (2018) examined the frequency of genome wide associated variants occurring within locations of interest within the gene. This analysis leveraged the NHGRI-EBI and GWASdb.v2 databases as these catalogs provide associations to a genomic region (enhancer, circRNA, promoter, exon) of which the variant occurs within. In this investigation, Giral & Kratzer (2018) reported that a significant majority (90%) of disease associated variants exist outside of coding regions. This implies that most diseases are due to improper expression of proteins compared to malformed protein structures. Although this discovery may alter the approach to understanding genetic expression and disease, the significant finding reported by this investigation was that 45% of all disease associated variants occur within long non coding RNA (Giral & Kratzer, 2018).   
+
+ 
+
+The available public literature for the impact of variants in non coding RNA structure is sparse. Although, there exists significant research performed on the structural formation of non coding RNAs. For all types of non coding RNA, the structures are formed through the hydrogen bonding of nucleotides (Chillón & Marcia, 2020). Although it can be theorized as to the effects of altering a single nucleotide sequence, the actual effects of such a change could produce a variety of alterations to either the overall structure or individual structural components. In protein, the degree of structural change to the resulting protein is dependent on if the variation is an insertion/deletion or a single nucleotide polymorphism (Feyfant, Sali & Fiser, 2007). An insertion or deletion can produce cascading effects that is certain to negatively affect the resulting structure, or a single nucleotide polymorphism would alter only one amino acid within the chain (Feyfant, Sali & Fiser, 2007). The altered amino acid may yield significant or insignificant structural changes to the resulting protein. To understand how dysfunctional non coding RNA results in a condition, the structural variation, including variation of components would warrant analysis. 
+
+With the increasing evidence of dysfunctional non coding RNA in disease, there was significant interest in exploring the association of non coding RNA within Growth Retardation and further the understanding for how dysfunctional RNA may result in Growth Retardation. To accomplish this, a series of public data sets were leveraged to perform both frequency analyses for variants intersecting non coding RNA and a set of analyses of structural variation for associated non coding RNA. 
+
+\section{Methods and Datasets} \label{s:methods}
+
+ 
+
+All data retrieval, operations and analyses were conducted through a python script (v 3.8.5). The script, all utilities and documentation are stored in a source code repository. All data can be viewed from a cloud hosted file share. The locations of the source code and the data are found within the Supplemental section of this article. All experimentally verified variants and genomic regions were acquired from several databases which are listed in Table 1. The programmatical method for retrieving the data either involved Api requests, file downloads or database (SQL) queries. Data obtained by SQL query or Api request are cached as a json file on the local directory. Genomic regions other than transcript regions (CDS, UTR 3’, UTR 5’) and non coding RNA were include in the event that Growth Retardation variants were associated with an unexpected region (enhancer, insulator). 
+
+Several databases stored coordinate data for genomic regions or variants in the hg19 coordinate format. The current version of the human genome coordinate system is hg38. As a result, the coordinate systems for data sets retrieved from databases using the hg19 format were translated into the hg38 format via the LiftOver python package. The human genome coordinate format for each database is listed in Table 1. 
+
+The GENECODE annotations provides coordinate data for exons, coding regions (CDS), and both untranslated regions (UTR 3’, UTR 5’). To extract the coordinate data of the introns, the Bedtools software (Quinlan & Hall, 2010) suite was leveraged in a two step method that is displayed in Figure 2. The coordinates for overlapping exons are initially merged. Then, the coordinates for the gaps between merged exons were calculated. These gapped coordinates represent the introns existing within the transcripts. Exons were not included in the analysis as exons are comprised of CDS, UTR 3’ and UTR 5’ regions. The inclusion of CDS, UTR 3’ and UTR 5’ regions were included in favor to provide additional granularity for the frequency analyses. 
+
+Circular RNA databases, including CircBase stores only a single coordinate set (start and end position) which includes all spliced sequences found within the DNA in addition to extraneous genomic information. The sub coordinates of circular RNA which represents introns and exons that are a bi product of alternative splicing were obtained through an algorithmic process that is displayed in Figure 3. For this process, the Longest Common Subsequence algorithm locates a shared genomic sequence that exists in both the inclusive genomic sequence and the corresponding consensus RNA sequence provided by CircBase. The coordinates for this sequence are obtained and transformed to reflect the absolute coordinate found within the hg38 coordinate system. The shared sequence in the consensus RNA sequence is then replaced by a marker. This process is repeated until only markers remain. This process generates a set of sub coordinates of the introns and exons used to construct the representative circular RNA. The sub coordinate sets are then reindexed by means of the resulting markers to ensure proper ordering when reconstructing the consensus string for the structural analysis. 
+
+After obtaining all Growth Retardation variants and genomic regions of interest, variants were then associated to genomic regions by coordinates. The association occurs under the condition that the variants start or end position was within, and includes, the defined start and end position for the genomic region. These associated data sets were analyzed through a set of frequency analyses. 
+
+An initial analysis of these associations evaluated the frequency of variants within occurring within genomic regions to measure the concentration of variants intersecting a type of genomic region. With potential overlap of genomic regions, it is plausible for frequencies in this analysis to be inflated as variants would be tallied for multiple occurrences. Therefore, two additional analyses were performed to measure both the number of genomic regions and number of genomic region types intersected by these variants. To observe non coding specific variants, a specific frequency association was performed to measure the number of Growth Retardation variants that intersect non coding RNA regions and not intersect coding sequences. Under random occurrence, variants should be distributed based on the proportion of genomic coverage for a region type (enhancer, CDS). A chi square test was performed to statistically evaluate if there exists a diversion from the expected random occurrence distribution.  
+
+The structures for all non coding RNAs and associated variants were generated in a multi step process orchestrated by the python script. For this process, each variant existing within the non coding RNA was applied to the sequence such that a mutant sequence was generated. The structures for all non coding RNA sequences and mutant sequences were generated by means of the ViennaRNA software suite (Lorenz et al., 2011). In the post processing step, the Perl script, bpRNA.pl (Danaee et. Al, 2018) transformed the structural output of ViennaRNA into a format for which could be analyzed.  
+
+An initial structural analysis measured the frequency of a structural component occurring within all non coding RNA reference structures compared to all mutant structures. A second structural analysis was performed to measure the deviation in orientation of the mutated structure compared to the associated non coding RNA reference structure. A string differential algorithm was applied to generate a list of modifications required to transform the reference structural string into the mutated structural string. A percent change to the reference structural string was calculated using the quantity of modifications produced by the string differential operation.  
+
+\section{Results} \label{s:results}
+
+\subsection{
+\emph{Data}} \label{s:conclusion}
+
+The database search results for Growth Retardation variants and regions associated with the FTO gene can be viewed in Table 1. The FTO gene consists of 23 transcripts which contains 145 unique exons and 50 shared intronic regions. The FTO gene contains a single promoter, 6 insulators and 107 enhancers. The quantity of enhancers obtained is due to the inclusion of enhancers from all tissue types. Only two types of non coding RNA are found within the FTO gene. There are 19 circular RNA and 19 long non coding RNA. 
+
+\subsection{
+\emph{Freq Analysis}} \label{s:conclusion}
+
+Table 2 in Appendix E displays the frequency for variants occurring within specific region types. It was found that no variants related to Growth Retardation occur within the enhancers, insulators or long non coding RNA. Seen in Figure 4, there exists a concentration (97%) of variants within CDS, UTR 3’ and circular RNA regions. All other regions exhibit at least one Growth Retardation variant.  
+
+The frequency of a variants within genomic region types is displayed in Figure 4. It was found that 17% of the variants impact three regional types, 71% of variants impacts two regional types and only 12% of variants impact only a single region type. The frequency of variants intersecting with two or three types of genomic regions correlates to the original frequency graph. The frequency analysis results for the number of regions for which variants intersect is displayed in Figure 5. The highest frequencies  of variants were found to intersect 2, 3, 6, and 7 genomic regions. This displays a significant level of overlap of genomic regions within the FTO gene.  
+
+The expected distribution of the variants anticipates 1.4% of variants within circular RNA, 11.7% of variants within enhancers, 0.4% of variants in coding regions, and 7% of variants within long non coding RNA. The results of the chi-square test revealed that the observed distribution of Growth Retardation variants among regions differed significantly from the expected distribution (Df=8, p > 0.0001). Of the observed concentration of variants and genomic regions, a total of 66 of the 117 Growth Retardation variants were found to intersect circular RNA and not the coding sequences. 
+
+\subsection{
+\emph{Struct Analysis}} \label{s:conclusion}
+
+Figure 4 displays the structural component analysis comparing structural frequencies within all non coding RNA reference structures to mutant structures. It was found that all structural components are significantly more frequent in mutant structures compared to the reference ncRNA structures. Only unpaired regions and segments are uninterpretable due to the infrequent occurrences of these structures within circular RNA.  
+
+The analysis of difference in structural orientation between mutated structures and associated reference structures displayed a wide range of frequencies in percent differences. Nearly half (45%) of the structural differences exhibited less than 10% of structural changes. 54% of mutated structures differed from the reference structure by more than 20%. One third of all structural changes exhibited a significant degree of structural differences (>90%) in comparison to the reference structures.  
+
+\section{Discussion} \label{s:discussion}
+
+
+\subsection{
+\emph{Freq Analysis}} \label{s:conclusion}
+
+The chi square test confirmed that the frequencies of variants occurring in genomic regions differed from the expected distribution. The expected distribution of variants was dependent on the coverage of each region type within the FTO gene. Therefore, the higher coverage of a region should yield a higher quantity of variants under the condition the variants were randomly dispersed. The observed distribution was that a concentration of Growth Retardation variants occurred within circular RNA, UTR 3’, UTR 5’ and CDS regions. Although few variants linked to Growth Retardation were found in the promoter and introns, it was unusual for no variants to occur within the enhancers, insulators, or long non coding RNA. This observation suggests that variation to either the circular RNA or the resulting protein structure for the FTO gene would result in Growth Retardation. Although not pertinent to this investigation, the inclusion of additional genomic regions provided additional insight in that variation of the promoter would also yield Growth Retardation.  
+
+The frequency analysis of variants in genomic regions displayed frequencies within the CDS, UTR 3’ and UTR 5’ that exceed the quantity of Growth Retardations obtained. Therefore, there exists some degree of overlap between these three regions. As frequency analyses construct observations from a singular viewpoint, additional frequency analyses must be constructed. This is a known limitation of this approach. Therefore, to explore the high frequencies in the CDS, UTR 3’ and UTR 5’ regions, two additional frequency analyses were conducted to observe variants intersecting overlapping genomic regions. The number of genomic regions intersected by variants as seen in Figure 1 displays a significant degree of overlap with a majority of variants intersecting 3 to 7 genomic regions. This observation would explain the high frequencies recorded for the analysis of variants occurring within genomic regions as there may exist multiple regions of the same type intersected by a single variant. Therefore, the variant would be counted multiple times for a single genomic region type.  
+
+The frequency analysis for variants intersecting unique genomic region types revealed a majority of variants impacted two or three genomic region types. Although this analysis masks the types of genomic regions for which are intersected, used in conjunction with the genomic region frequency analysis, an interpretation can still be conducted. The data presented for the variants intersecting unique genomic region types corresponds to the frequency analysis of variants occurring in genomic regions where most variants occurred within three types of genomic regions. This analysis further supports the high degree of overlap that was observed such that the untranslated regions, coding sequences and circular RNA occur within the same genomic range. The overlap of circular RNA is not unusual as circular is composed of introns and exon bi products from alternative splicing. Although variants intersecting multiple genomic regions could increase the disruption within genetic expression and may yield additional undesirable effects. While all three of these frequency analysis provide singular viewpoints upon which to view this data, the culmination of these frequency analysis on this data supplemented for the usage of a genome browser.  
+
+Growth Retardation variants found within the coding sequences would result in altered protein structure. The effects of which would disable or weaken the functionality of the protein. Therefore, the effects of variants intersecting both CDS and circular RNA regions could in theory be masked. Due to the significant overlap occurring between transcripts and circular RNA, a final calculation performed. In discovering that 66 of 117 Growth Retardation variants occur within circular RNA regions and not in coding sequences suggests the hypothesis for which dysfunctional circular RNA in the FTO gene results in Growth Retardation. 
+
+ 
+
+\subsection{
+\emph{Struct Analysis}} \label{s:conclusion}
+
+The comparison of the average frequency of structural components in mutated structures against reference ncRNA structures exhibited an unexpected pattern. The average of structural components in mutated structures was significantly higher compared to the reference structures. This pattern was observed in all comparisons for types of structural components within circular RNA. Although this analysis demonstrates a degree structural impact induced by variants, the degree for which the structure and structural components alter is not fully exhibited. This is a result of grouping all reference structures and mutant structures into a single group. In addition, due to the nature of the data set, there exists some skepticism for potentially inflated values as there exists more mutant structures compared to reference structures. Although this information presents indicators of significant structural changes, an alternative analysis was performed. 
+
+The second structural analysis was conducted to further evaluate structural modifications to circular RNA as a result of variation. It was unexpected for a majority of the structural changes to either be significant (>90% diff) or insignificant (<10% diff). Structural alterations between 10% and 90% were infrequent in comparison. Although the variant data set contained several indels, a majority of the variants were single nucleotide polymorphisms. While the high frequency of significant structural changes (>40%) are most likely due to several of the 10 indels that occur within the FTO gene. It is plausible for a portion of these significant structural alterations within the non coding RNA structure to be a result of single nucleotide polymorphisms which would signify some form of sensitivity of structural formation. The structures that underwent significant structural changes (>90% diff) as a result of variation are predicted to either have some degree in loss of functionality or altered functionality such that the malformed non coding RNA would negatively impact components within the cell. Studies such as Zhou & Li (2021) or Xu et al. (2021) would suggest the structures exhibiting severe structural differences (>40%) would either be non functional or conduct a different set of undesired operations. For the minor structural changes observed, there does exist the situation for which variation occurs within the enzymatic (hairpin) components of the circular RNA  for which some functionality is lost. Determining loss of enzymatic functionality or minor structural changes would require additional analysis either by means of overlapping structural comparison or by means of a wet lab experiment. 
+
+Both structural analyses were based on all variants intersecting with non coding RNA, and therefore includes variants also intersecting with coding sequences. These analyses were intended to analyze the degree of structural changes as a result of variants. To observe the structural alterations of non coding RNA that directly result in Growth Retardation, an additional analysis would need to be performed. The inclusion of this additional analysis was an initial oversight in the design of this project and was not able to be performed due to time constraints. 
+
+\subsection{
+\emph{Conclusion}} \label{s:conclusion}
+
+The significant degree of structural change as a result of the variations to occur within half of the circular RNA would either disable or alter the functionality to a degree as to negatively impact the genetic expression of the FTO gene and possibly other components within the cell. The high frequency of significant structural changes in circular RNA coupled with the majority of Growth Retardations existing outside of coding sequences and within circular RNA presents significant evidence for which dysfunctional circular RNA would result in Growth Retardation. Although given this significant evidence, the hypothesis of dysfunctional non coding RNA resulting in Growth Retardation would require experimental verification to confirm and further explore the findings within this analysis. 
+\subsection{
+\emph{Proposal Differential}} \label{s:prop differential}
+
+In the endeavor for conducting a series of scientific analyses originally defined in the proposal, there were several deviations conducted to obtain the necessary data and results. These deviations were due to a lack of experience within the bioinformatics field and general knowledge regarding the available data. The deviations to the proposal are briefly outlined in the following paragraphs. 
+
+Minor adjustments were made to the databases queried. The SnoRNA database (snoDB) was added to the analysis after the proposal once realized that RNA central did not include snoRNA data. The proposed insulator database was exchanged for CTCFBSDB 2.0 due to the availability of data. Although the original proposed database allowed for the data sets to be downloaded, the download process could only be conducted manually. In favor of constructing a script to streamline the data acquisition process, the CTCFBSDB 2.0 database was utilized instead. 
+
+It was not originally known of the existence of multiple coordinate systems within the human genome. Therefore, the coordinates needed to be adjusted with the LiftOver package. The absence of introns provided by GENECODE prompted the usage of bedtools in order to derive the coordinate data of the introns from the available exon coordinates. The absence of sub coordinates provided by CircBase presented an issue of accuracy. This was initially overlooked due to the unknown nature of circular RNA and the improper examination of data recorded in the database. Therefore, a computational method (outlined in the methods section) was constructed to determine the sub coordinates of the circular RNA. 
+
+It was not expected for the large degree of overlap between genomic regions. As a result, two additional frequency analyses were constructed to measure variants intersecting overlapping genomic regions. A meaningful conclusion could not be performed from the initial structural analysis. Therefore, a second analysis was performed such that meaningful interpretations in the structural transformations could be measured. These analyses, although provided useful information, do not specifically examine variants that occur only within non coding RNA. This was realized after thorough examination of the data of which the adjustment to these analyses could not be met due to time constraints. 
+
+There were several operational deviations due to time constraints. This includes not making code commits in the manner described in the proposal. In addition, there exist far fewer unit tests then what was proposed. Although all code is operational, the organization of the code could use improvements.
+
+\section{References} \label{s:references}
+
+Boissel, S., Reish, O., Proulx, K., Kawagoe-Takaki, H., Sedgwick, B., Yeo, G. S., Meyre, D., Golzio, C., Molinari, F., Kadhom, N., Etchevers, H. C., Saudek, V., Farooqi, I. S., Froguel, P., Lindahl, T., O'Rahilly, S., Munnich, A., & Colleaux, L. (2009). Loss-of-function mutation in the dioxygenase-encoding FTO gene causes severe growth retardation and multiple malformations. American journal of human genetics, 85(1), 106–111. https://doi.org/10.1016/j.ajhg.2009.06.002 
+
+Çağlayan, A., Tüysüz, B., Coşkun, S. et al. A patient with a novel homozygous missense mutation in FTO and concomitant nonsense mutation in CETP. J Hum Genet 61, 395–403 (2016). https://doi.org/10.1038/jhg.2015.160 
+
+Chillón, I., & Marcia, M. (2020). The molecular structure of long non-coding RNAs: emerging patterns and functional implications. Critical reviews in biochemistry and molecular biology, 55(6), 662–690. https://doi.org/10.1080/10409238.2020.1828259 
+
+Danaee, P., Rouches, M., Wiley, M., Deng, D., Huang, L., & Hendrix, D. (2018). bpRNA: large-scale automated annotation and analysis of RNA secondary structure. Nucleic acids research, 46(11), 5381–5394. https://doi.org/10.1093/nar/gky285 
+
+Dill, K. A., Bromberg, S., Yue, K., Fiebig, K. M., Yee, D. P., Thomas, P. D., & Chan, H. S. (1995). Principles of protein folding--a perspective from simple exact models. Protein science : a publication of the Protein Society, 4(4), 561–602. https://doi.org/10.1002/pro.5560040401 
+
+Ferenc, K., Pilžys, T., Garbicz, D. et al. Intracellular and tissue specific expression of FTO protein in pig: changes with age, energy intake and metabolic status. Sci Rep 10, 13029 (2020). https://doi.org/10.1038/s41598-020-69856-5 
+
+Feyfant, E., Sali, A., & Fiser, A. (2007). Modeling mutations in protein structures. Protein science : a publication of the Protein Society, 16(9), 2030–2041. https://doi.org/10.1110/ps.072855507 
+
+Gao, Xue & Shin, Yonghyun & Wang, Fei & Tong, Qiang & Zhang, Pumin. (2010). The Fat Mass and Obesity Associated Gene FTO Functions in the Brain to Regulate Postnatal Growth in Mice. PloS one. 5. e14005. 10.1371/journal.pone.0014005. 
+
+Gibb, E.A., Brown, C.J. & Lam, W.L. The functional role of long non-coding RNA in human carcinomas. Mol Cancer 10, 38 (2011). https://doi.org/10.1186/1476-4598-10-38 
+
+Giral, H., Landmesser, U., & Kratzer, A. (2018). Into the Wild: GWAS Exploration of Non-coding  RNAs. Frontiers in cardiovascular medicine, 5, 181.  https://doi.org/10.3389/fcvm.2018.00181 
+
+Kolovos, P., Knoch, T. A., Grosveld, F. G., Cook, P. R., & Papantonis, A. (2012). Enhancers and silencers: an integrated and simple model for their function. Epigenetics & chromatin, 5(1), 1. https://doi.org/10.1186/1756-8935-5-1 
+
+Lam, S. D., Babu, M. M., Lees, J., & Orengo, C. A. (2021). Biological impact of mutually exclusive exon switching. PLoS computational biology, 17(3), e1008708. https://doi.org/10.1371/journal.pcbi.1008708 
+
+Li, G. W., & Xie, X. S. (2011). Central dogma at the single-molecule level in living cells. Nature, 475(7356), 308–315. https://doi.org/10.1038/nature10315 
+
+Lorenz, R., Bernhart, S. H., Höner Zu Siederdissen, C., Tafer, H., Flamm, C., Stadler, P. F., & Hofacker, I. L. (2011). ViennaRNA Package 2.0. Algorithms for molecular biology : AMB, 6, 26. https://doi.org/10.1186/1748-7188-6-26 
+
+Macfarlane, L. A., & Murphy, P. R. (2010). MicroRNA: Biogenesis, Function and Role in Cancer. Current genomics, 11(7), 537–561. https://doi.org/10.2174/138920210793175895 
+
+Quinlan, A. R., & Hall, I. M. (2010). BEDTools: a flexible suite of utilities for comparing genomic features. Bioinformatics (Oxford, England), 26(6), 841–842. https://doi.org/10.1093/bioinformatics/btq033 
+
+Rohena, L., Lawson, M., Guzman, E., Ganapathi, M., Cho, M. T., Haverfield, E., & Anyane-Yeboa, K. (2016). FTO variant associated with malformation syndrome. American journal of medical genetics. Part A, 170A(4), 1023–1028. https://doi.org/10.1002/ajmg.a.37515 
+
+Smith, M., & Flodman, P. L. (2018). Expanded Insights Into Mechanisms of Gene Expression and Disease Related Disruptions. Frontiers in molecular biosciences, 5, 101. https://doi.org/10.3389/fmolb.2018.00101 
+
+Tazi, J., Bakkour, N., & Stamm, S. (2009). Alternative splicing and disease. Biochimica et biophysica acta, 1792(1), 14–26. https://doi.org/10.1016/j.bbadis.2008.09.017 
+
+Xu, Y. Z., Cheng, M. G., Wang, X., & Hu, Y. (2021). The emerging role of non-coding RNAs from extracellular vesicles in Alzheimer's disease. Journal of integrative neuroscience, 20(1), 239–245. https://doi.org/10.31083/j.jin.2021.01.360 
+
+Yeo, G. S., & O'Rahilly, S. (2012). Uncovering the biology of FTO. Molecular metabolism, 1(1-2), 32–36. https://doi.org/10.1016/j.molmet.2012.06.001 
+
+Yu, CY., Kuo, HC. The emerging roles and functions of circular RNAs and their generation. J Biomed Sci 26, 29 (2019). https://doi.org/10.1186/s12929-019-0523-z 
+
+Zampetaki, A., Albrecht, A., & Steinhofel, K. (2018). Long Non-coding RNA Structure and Function: Is There a Link?. Frontiers in physiology, 9, 1201. https://doi.org/10.3389/fphys.2018.01201 
+
+Zhou, J. X., & Li, X. (2021). Non-Coding RNAs in Hereditary Kidney Disorders. International journal of molecular sciences, 22(6), 3014. https://doi.org/10.3390/ijms22063014 
+
+ 
+
+
+
+\section{Supplementals} \label{s:supplementals}
+
+%\begin{figure}[t]
+%	\centering
+%	\includegraphics[width=8cm]{infa-bactin}
+%	\caption{Logarithmic fold Inductions for Interferon-$\alpha$ vs $\beta$-actin.
+%	Refer to the analysis subsection of the methods section for insight on how this graph was constructed.
+%	}
+%	\label{fig:mesh1}
+%\end{figure}
+
+
+\section{Section heading 2} \label{s:sec2}
+The review of literature can be a separate section but it can be merged with the introduction section. One can find a number of reference examples at the end of this template, like,
 \begin{itemize}
-  \item \texttt{10pt}, \texttt{11pt}, \texttt{12pt} -- unavailable;
-  \item \texttt{oneside}, \texttt{twoside} -- not necessary, \texttt{oneside} is the default;
-  \item \texttt{leqno}, \texttt{titlepage} -- should not be used;
-  \item \texttt{twocolumn} -- should not be used (see Subsection~\ref{class});
-  \item \texttt{onecolumn} -- not necessary as it is the default style.
+\item A book: \cite{Hastie2009}.
+\item A journal article: \cite{Byon2013}.
+\item A conference paper: \cite{Breunig2000}.
+\item A book chapter: \cite{Yang2010}.
+\item A technical report: \cite{Kelley2007}.
 \end{itemize}
-To prepare a manuscript for a journal that is printed in A4 (two column) format, use the \verb"largeformat" document-class option provided by \texttt{interact.cls}; otherwise the class file produces pages sized for B5 (single column) format by default. The \texttt{geometry} package should not be used to make any further adjustments to the page dimensions.
 
-%If your manuscript has supplementary content you can also use the \verb"interact" class file to prepare all or part of it using the \verb"suppldata" document-class option, which will suppress the `article history' date. This option \emph{must not} be used on any primary content. Note that authors are solely responsible for the preparation of all supplemental material.
+\section{Section heading 3} \label{s:methods}
+First-level headings should be in bold.
 
+\subsection{
+\emph{Subsection heading 3.1}} \label{s:methods.1}
+Second-level headings should be in bold italics.
 
-\section{Additional features of the \texttt{interact} class file}
+\subsubsection{\emph{Sub-subsection heading 3.1.1}} \label{s:methods.1.1}
 
-\subsection{Title, authors' names and affiliations, abstracts and article types}
+Third-level headings should be in italics.
+	
+\subsection{\emph{Subsection heading 3.2}} \label{s:methods.2}
 
-The title should be generated at the beginning of your article using the \verb"\maketitle" command.
-In the final version the author name(s) and affiliation(s) must be followed immediately by \verb"\maketitle" as shown below in order for them to be displayed in your PDF document.
-To prepare an anonymous version for double-blind peer review, you can put the \verb"\maketitle" between the \verb"\title" and the \verb"\author" in order to hide the author name(s) and affiliation(s) temporarily.
-Next you should include the abstract if your article has one, enclosed within an \texttt{abstract} environment.
-The \verb"\articletype" command is also provided as an \emph{optional} element which should \emph{only} be included if your article actually needs it.
-For example, the titles for this document begin as follows:
-\begin{verbatim}
-\articletype{ARTICLE TEMPLATE}
 
-\title{Taylor \& Francis \LaTeX\ template for authors (\textsf{Interact}
-layout + NLM reference style)}
+\subsection{\emph{Subsection heading 3.3}} \label{s:methods.3}
+	
+\section{Section heading 4} \label{s:numerical}
+Perhaps numerical analysis of performance, comparison, and demonstration of applicability and impact using real data.
 
-\author{
-\name{A.~N. Author\textsuperscript{a}\thanks{CONTACT A.~N. Author.
-Email: latex.helpdesk@tandf.co.uk} and John Smith\textsuperscript{b}}
-\affil{\textsuperscript{a}Taylor \& Francis, 4 Park Square, Milton
-Park, Abingdon, UK; \textsuperscript{b}Institut f\"{u}r Informatik,
-Albert-Ludwigs-Universit\"{a}t, Freiburg, Germany} }
+\section{Conclusion}\label{s:conclusion}
+A paper ends with a conclusion or summary section.
 
-\maketitle
+\if0\blind{
+\section*{Acknowledgements}
+The authors acknowledge the generous support from the funding agency of XYZ.	} \fi
 
-\begin{abstract}
-This template is for authors who are preparing a manuscript for a
-Taylor \& Francis journal using the \LaTeX\ document preparation system
-and the \texttt{interact} class file, which is available via selected
-journals' home pages on the Taylor \& Francis website.
-\end{abstract}
-\end{verbatim}
-
-An additional abstract in another language (preceded by a translation of the article title) may be included within the \verb"abstract" environment if required.
-
-A graphical abstract may also be included if required. Within the \verb"abstract" environment you can include the code
-\begin{verbatim}
-\\\resizebox{25pc}{!}{\includegraphics{abstract.eps}}
-\end{verbatim}
-where the graphical abstract is to appear, where \verb"abstract.eps" is the name of the file containing the graphic (note that \verb"25pc" is the recommended maximum width, expressed in pica, for the graphical abstract in your manuscript).
-
-
-\subsection{Abbreviations}
-
-A list of abbreviations may be included if required, enclosed within an \texttt{abbreviations} environment, i.e.\ \verb"\begin{abbreviations}"\ldots\verb"\end{abbreviations}", immediately following the \verb"abstract" environment.
-
-
-\subsection{Keywords}
-
-A list of keywords may be included if required, enclosed within a \texttt{keywords} environment, i.e.\ \verb"\begin{keywords}"\ldots\verb"\end{keywords}". Additional keywords in other languages (preceded by a translation of the word `keywords') may also be included within the \verb"keywords" environment if required.
-
-
-\subsection{Subject classification codes}
-
-AMS, JEL or PACS classification codes may be included if required. The \texttt{interact} class file provides an \texttt{amscode} environment, i.e.\ \verb"\begin{amscode}"\ldots\verb"\end{amscode}", a \texttt{jelcode} environment, i.e.\ \verb"\begin{jelcode}"\ldots\verb"\end{jelcode}", and a \texttt{pacscode} environment, i.e.\ \verb"\begin{pacscode}"\ldots\verb"\end{pacscode}" to assist with this.
-
-
-\subsection{Additional footnotes to the title or authors' names}
-
-The \verb"\thanks" command may be used to create additional footnotes to the title or authors' names if required. Footnote symbols for this purpose should be used in the order
-$^\ast$~(coded as \verb"$^\ast$"), $\dagger$~(\verb"$\dagger$"), $\ddagger$~(\verb"$\ddagger$"), $\S$~(\verb"$\S$"), $\P$~(\verb"$\P$"), $\|$~(\verb"$\|$"),
-$\dagger\dagger$~(\verb"$\dagger\dagger$"), $\ddagger\ddagger$~(\verb"$\ddagger\ddagger$"), $\S\S$~(\verb"$\S\S$"), $\P\P$~(\verb"$\P\P$").
-
-Note that any \verb"footnote"s to the main text will automatically be assigned the superscript symbols 1, 2, 3, etc. by the class file.\footnote{If preferred, the \texttt{endnotes} package may be used to set the notes at the end of your text, before the bibliography. The symbols will be changed to match the style of the journal if necessary by the typesetter.}
-
-
-\section{Some guidelines for using the standard features of \LaTeX}
-
-\subsection{Sections}
-
-The \textsf{Interact} layout style allows for five levels of section heading, all of which are provided in the \texttt{interact} class file using the standard \LaTeX\ commands \verb"\section", \verb"\subsection", \verb"\subsubsection", \verb"\paragraph" and \verb"\subparagraph". Numbering will be automatically generated for all these headings by default.
-
-
-\subsection{Lists}
-
-Numbered lists are produced using the \texttt{enumerate} environment, which will number each list item with arabic numerals by default. For example,
-\begin{enumerate}
-  \item first item
-  \item second item
-  \item third item
-\end{enumerate}
-was produced by
-\begin{verbatim}
-\begin{enumerate}
-  \item first item
-  \item second item
-  \item third item
-\end{enumerate}
-\end{verbatim}
-Alternative numbering styles can be achieved by inserting an optional argument in square brackets to each \verb"item", e.g.\ \verb"\item[(i)] first item"\, to create a list numbered with roman numerals at level one.
-
-Bulleted lists are produced using the \texttt{itemize} environment. For example,
-\begin{itemize}
-  \item First bulleted item
-  \item Second bulleted item
-  \item Third bulleted item
-\end{itemize}
-was produced by
-\begin{verbatim}
-\begin{itemize}
-  \item First bulleted item
-  \item Second bulleted item
-  \item Third bulleted item
-\end{itemize}
-\end{verbatim}
-
-
-\subsection{Figures}
-
-The \texttt{interact} class file will deal with positioning your figures in the same way as standard \LaTeX. It should not normally be necessary to use the optional \texttt{[htb]} location specifiers of the \texttt{figure} environment in your manuscript; you may, however, find the \verb"[p]" placement option or the \verb"endfloat" package useful if a journal insists on the need to separate figures from the text.
-
-Figure captions appear below the figures themselves, therefore the \verb"\caption" command should appear after the body of the figure. For example, Figure~\ref{sample-figure} with caption and sub-captions is produced using the following commands:
-\begin{verbatim}
-\begin{figure}
-\centering
-\subfloat[An example of an individual figure sub-caption.]{%
-\resizebox*{5cm}{!}{\includegraphics{graph1.eps}}}\hspace{5pt}
-\subfloat[A slightly shorter sub-caption.]{%
-\resizebox*{5cm}{!}{\includegraphics{graph2.eps}}}
-\caption{Example of a two-part figure with individual sub-captions
- showing that captions are flush left and justified if greater
- than one line of text.} \label{sample-figure}
-\end{figure}
-\end{verbatim}
-\begin{figure}
-\centering
-\subfloat[An example of an individual figure sub-caption.]{%
-\resizebox*{5cm}{!}{\includegraphics{graph1.eps}}}\hspace{5pt}
-\subfloat[A slightly shorter sub-caption.]{%
-\resizebox*{5cm}{!}{\includegraphics{graph2.eps}}}
-\caption{Example of a two-part figure with individual sub-captions
- showing that captions are flush left and justified if greater
- than one line of text.} \label{sample-figure}
-\end{figure}
-
-To ensure that figures are correctly numbered automatically, the \verb"\label" command should be included just after the \verb"\caption" command, or in its argument.
-
-The \verb"\subfloat" command requires \verb"subfig.sty", which is called in the preamble of the \texttt{interactnlmsample.tex} file (to allow your choice of an alternative package if preferred) and included in the \textsf{Interact} \LaTeX\ bundle for convenience. Please supply any additional figure macros used with your article in the preamble of your .tex file.
-
-The source files of any figures will be required when the final, revised version of a manuscript is submitted. Authors should ensure that these are suitable (in terms of lettering size, etc.) for the reductions they envisage.
-
-The \texttt{epstopdf} package can be used to incorporate encapsulated PostScript (.eps) illustrations when using PDF\LaTeX, etc. Please provide the original .eps source files rather than the generated PDF images of those illustrations for production purposes.
-
-
-\subsection{Tables}
-
-The \texttt{interact} class file will deal with positioning your tables in the same way as standard \LaTeX. It should not normally be necessary to use the optional \texttt{[htb]} location specifiers of the \texttt{table} environment in your manuscript; you may, however, find the \verb"[p]" placement option or the \verb"endfloat" package useful if a journal insists on the need to separate tables from the text.
-
-The \texttt{tabular} environment can be used as shown to create tables with single horizontal rules at the head, foot and elsewhere as appropriate. The captions appear above the tables in the \textsf{Interact} style, therefore the \verb"\tbl" command should be used before the body of the table. For example, Table~\ref{sample-table} is produced using the following commands:
-\begin{table}
-\tbl{Example of a table showing that its caption is as wide as
- the table itself and justified.}
-{\begin{tabular}{lcccccc} \toprule
- & \multicolumn{2}{l}{Type} \\ \cmidrule{2-7}
- Class & One & Two & Three & Four & Five & Six \\ \midrule
- Alpha\textsuperscript{a} & A1 & A2 & A3 & A4 & A5 & A6 \\
- Beta & B2 & B2 & B3 & B4 & B5 & B6 \\
- Gamma & C2 & C2 & C3 & C4 & C5 & C6 \\ \bottomrule
-\end{tabular}}
-\tabnote{\textsuperscript{a}This footnote shows how to include
- footnotes to a table if required.}
-\label{sample-table}
-\end{table}
-\begin{verbatim}
-\begin{table}
-\tbl{Example of a table showing that its caption is as wide as
- the table itself and justified.}
-{\begin{tabular}{lcccccc} \toprule
- & \multicolumn{2}{l}{Type} \\ \cmidrule{2-7}
- Class & One & Two & Three & Four & Five & Six \\ \midrule
- Alpha\textsuperscript{a} & A1 & A2 & A3 & A4 & A5 & A6 \\
- Beta & B2 & B2 & B3 & B4 & B5 & B6 \\
- Gamma & C2 & C2 & C3 & C4 & C5 & C6 \\ \bottomrule
-\end{tabular}}
-\tabnote{\textsuperscript{a}This footnote shows how to include
- footnotes to a table if required.}
-\label{sample-table}
-\end{table}
-\end{verbatim}
-
-To ensure that tables are correctly numbered automatically, the \verb"\label" command should be included just before \verb"\end{table}".
-
-The \verb"\toprule", \verb"\midrule", \verb"\bottomrule" and \verb"\cmidrule" commands are those used by \verb"booktabs.sty", which is called by the \texttt{interact} class file and included in the \textsf{Interact} \LaTeX\ bundle for convenience. Tables produced using the standard commands of the \texttt{tabular} environment are also compatible with the \texttt{interact} class file.
-
-
-\subsection{Landscape pages}
-
-If a figure or table is too wide to fit the page it will need to be rotated, along with its caption, through 90$^{\circ}$ anticlockwise. Landscape figures and tables can be produced using the \verb"rotating" package, which is called by the \texttt{interact} class file. The following commands (for example) can be used to produce such pages.
-\begin{verbatim}
-\setcounter{figure}{1}
-\begin{sidewaysfigure}
-\centerline{\epsfbox{figname.eps}}
-\caption{Example landscape figure caption.}
-\label{landfig}
-\end{sidewaysfigure}
-\end{verbatim}
-\begin{verbatim}
-\setcounter{table}{1}
-\begin{sidewaystable}
- \tbl{Example landscape table caption.}
-  {\begin{tabular}{@{}llllcll}
-    .
-    .
-    .
-  \end{tabular}}\label{landtab}
-\end{sidewaystable}
-\end{verbatim}
-Before any such float environment, use the \verb"\setcounter" command as above to fix the numbering of the caption (the value of the counter being the number given to the preceding figure or table). Subsequent captions will then be automatically renumbered accordingly. The \verb"\epsfbox" command requires \verb"epsfig.sty", which is called by the \texttt{interact} class file and is also included in the \textsf{Interact} \LaTeX\ bundle for convenience.
-
-Note that if the \verb"endfloat" package is used, one or both of the commands
-\begin{verbatim}
-\DeclareDelayedFloatFlavor{sidewaysfigure}{figure}
-\DeclareDelayedFloatFlavor{sidewaystable}{table}
-\end{verbatim}
-will need to be included in the preamble of your .tex file, after the \verb"endfloat" package is loaded, in order to process any landscape figures and/or tables correctly.
-
-
-\subsection{Theorem-like structures}
-
-A predefined \verb"proof" environment is provided by the \texttt{amsthm} package (which is called by the \texttt{interact} class file), as follows:
-\begin{proof}
-More recent algorithms for solving the semidefinite programming relaxation are particularly efficient, because they explore the structure of the MAX-CUT problem.
-\end{proof}
-\noindent This was produced by simply typing:
-\begin{verbatim}
-\begin{proof}
-More recent algorithms for solving the semidefinite programming
-relaxation are particularly efficient, because they explore the
-structure of the MAX-CUT problem.
-\end{proof}
-\end{verbatim}
-Other theorem-like environments (theorem, definition, remark, etc.) need to be defined as required, e.g.\ using \verb"\newtheorem{theorem}{Theorem}" in the preamble of your .tex file (see the preamble of \verb"interactnlmsample.tex" for more examples). You can define the numbering scheme for these structures however suits your article best. Please note that the format of the text in these environments may be changed if necessary to match the style of individual journals by the typesetter during preparation of the proofs.
-
-
-\subsection{Mathematics}
-
-\subsubsection{Displayed mathematics}
-
-The \texttt{interact} class file will set displayed mathematical formulas centred on the page without equation numbers if you use the \texttt{displaymath} environment or the equivalent \verb"\[...\]" construction. For example, the equation
-\[
- \hat{\theta}_{w_i} = \hat{\theta}(s(t,\mathcal{U}_{w_i}))
-\]
-was typeset using the commands
-\begin{verbatim}
-\[
- \hat{\theta}_{w_i} = \hat{\theta}(s(t,\mathcal{U}_{w_i}))
-\]
-\end{verbatim}
-
-For those of your equations that you wish to be automatically numbered sequentially throughout the text for future reference, use the \texttt{equation} environment, e.g.
-\begin{equation}
- \hat{\theta}_{w_i} = \hat{\theta}(s(t,\mathcal{U}_{w_i}))
-\end{equation}
-was typeset using the commands
-\begin{verbatim}
-\begin{equation}
- \hat{\theta}_{w_i} = \hat{\theta}(s(t,\mathcal{U}_{w_i}))
-\end{equation}
-\end{verbatim}
-
-Part numbers for sets of equations may be generated using the \texttt{subequations} environment, e.g.
-\begin{subequations} \label{subeqnexample}
-\begin{equation}
-     \varepsilon \rho w_{tt}(s,t) = N[w_{s}(s,t),w_{st}(s,t)]_{s},
-     \label{subeqnparta}
-\end{equation}
-\begin{equation}
-     w_{tt}(1,t)+N[w_{s}(1,t),w_{st}(1,t)] = 0,   \label{subeqnpartb}
-\end{equation}
-\end{subequations}
-which was typeset using the commands
-\begin{verbatim}
-\begin{subequations} \label{subeqnexample}
-\begin{equation}
-     \varepsilon \rho w_{tt}(s,t) = N[w_{s}(s,t),w_{st}(s,t)]_{s},
-     \label{subeqnparta}
-\end{equation}
-\begin{equation}
-     w_{tt}(1,t)+N[w_{s}(1,t),w_{st}(1,t)] = 0,   \label{subeqnpartb}
-\end{equation}
-\end{subequations}
-\end{verbatim}
-This is made possible by the \texttt{amsmath} package, which is called by the class file. If you put a \verb"\label" just after the \verb"\begin{subequations}" command, references can be made to the collection of equations, i.e.\ `(\ref{subeqnexample})' in the example above. Or, as the example also shows, you can label and refer to each equation individually -- i.e.\ `(\ref{subeqnparta})' and `(\ref{subeqnpartb})'.
-
-Displayed mathematics should be given end-of-line punctuation appropriate to the running text sentence of which it forms a part, if required.
-
-\subsubsection{Math fonts}
-
-\paragraph{Superscripts and subscripts}
-Superscripts and subscripts will automatically come out in the correct size in a math environment (i.e.\ enclosed within \verb"\(...\)" or \verb"$...$" commands in running text, or within \verb"\[...\]" or the \texttt{equation} environment for displayed equations). Sub/superscripts that are physical variables should be italic, whereas those that are labels should be roman (e.g.\ $C_p$, $T_\mathrm{eff}$). If the subscripts or superscripts need to be other than italic, they must be coded individually.
-
-\paragraph{Upright Greek characters and the upright partial derivative sign}
-Upright lowercase Greek characters can be obtained by inserting the letter `u' in the control code for the character, e.g.\ \verb"\umu" and \verb"\upi" produce $\umu$ (used, for example, in the symbol for the unit microns -- $\umu\mathrm{m}$) and $\upi$ (the ratio of the circumference of a circle to its diameter). Similarly, the control code for the upright partial derivative $\upartial$ is \verb"\upartial". Bold lowercase as well as uppercase Greek characters can be obtained by \verb"{\bm \gamma}", for example, which gives ${\bm \gamma}$, and \verb"{\bm \Gamma}", which gives ${\bm \Gamma}$.
-
-
-\section*{Acknowledgement(s)}
-
-An unnumbered section, e.g.\ \verb"\section*{Acknowledgements}", may be used for thanks, etc.\ if required and included \emph{in the non-anonymous version} before any Notes or References.
-
-
-\section*{Disclosure statement}
-
-An unnumbered section, e.g.\ \verb"\section*{Disclosure statement}", may be used to declare any potential conflict of interest and included \emph{in the non-anonymous version} before any Notes or References, after any Acknowledgements and before any Funding information.
-
-
-\section*{Funding}
-
-An unnumbered section, e.g.\ \verb"\section*{Funding}", may be used for grant details, etc.\ if required and included \emph{in the non-anonymous version} before any Notes or References.
-
-
-\section*{Notes on contributor(s)}
-
-An unnumbered section, e.g.\ \verb"\section*{Notes on contributors}", may be included \emph{in the non-anonymous version} if required. A photograph may be added if requested.
-
-
-\section*{Nomenclature/Notation}
-
-An unnumbered section, e.g.\ \verb"\section*{Nomenclature}" (or \verb"\section*{Notation}"), may be included if required, before any Notes or References.
-
-
-\section*{Notes}
-
-An unnumbered `Notes' section may be included before the References (if using the \verb"endnotes" package, use the command \verb"\theendnotes" where the notes are to appear, instead of creating a \verb"\section*").
-
-
-\section{References}
-
-\subsection{References cited in the text}
-
-References should be cited in accordance with US National Library of Medicine (NLM) style. References are cited in the text by a number in square brackets (e.g. [1], [2,4,10], [11--15], \emph{not} [11]--[15]), in the order in which they first appear. For further details on this reference style, see the Instructions for Authors on the Taylor \& Francis website.
-
-Each bibliographic entry has a key, which is assigned by the author and is used to refer to that entry in the text. In this document, the key \verb"Jen05" in the citation form \verb"\cite{Jen05}" produces `\cite{Jen05}', and the keys \verb"{Sch02,Wen95}" in the citation form \verb"\cite{Sch02,Wen95}" produce `\cite{Sch02,Wen95}'. The citation for a range of bibliographic entries (e.g.\ `\cite{Sha78,AG98,Smi75,Men05,DCK03,Hor98,Ant03,Zha05,Rog05,SRW05}') will automatically be produced by  \verb"\cite{Sha78,AG98,Smi75,Men05,DCK03,Hor98,Ant03,Zha05,Rog05,SRW05}". Optional notes may be included at the beginning and/or end of a citation by the use of square brackets, e.g.\ \verb"\cite[cf.][]{Gau05}" produces `\cite[cf.][]{Gau05}', \verb"\cite[p.356]{BGC04}" produces `\cite[p.356]{BGC04}', and \verb"\cite[see][p.73-–77]{PI51}" produces `\cite[see][p.73--77]{PI51}'.
-
-
-\subsection{The list of references}
-
-References should be listed at the end of the main text in the order in which they are first cited in the text. The following list shows some sample references prepared in the Taylor \& Francis NLM style.
-
-\begin{thebibliography}{99}
-
-\bibitem{Jen05}%1
-Jenkins~PF. Making sense of the chest x-ray: a hands-on guide. New York (NY):
-  Oxford University Press; 2005.
-
-\bibitem{Sch02}%2
-Schott~J, Priest~J. Leading antenatal classes: a practical guide. 2nd ed.
-  Boston (MA): Books for Midwives; 2002.
-
-\bibitem{Wen95}%3
-Wenger~NK, Sivarajan~Froelicher~E, Smith~LK, et~al. Cardiac rehabilitation.
-  Rockville (MD): Agency for Health Care Policy and Research (US); 1995.
-
-\bibitem{Sha78}%4
-Shakelford~RT. Surgery of the alimentary tract. Philadelphia (PA): W.B.
-  Saunders; 1978. Chapter 2, Esophagoscopy; p. 29--40.
-
-\bibitem{AG98}%5
-Ambudkar~SV, Gottesman~MM, editors. {ABC} transporters: biomedical, cellular,
-  and molecular aspects. San Diego (CA): Academic Press; 1998. (Methods in
-  enzymology; vol. 292).
-
-\bibitem{Smi75}%6
-Smith~CE. The significance of mosquito longevity and blood-feeding behaviour in
-  the dynamics of arbovirus infections. Med Biol. 1975;53:288--294.
-
-\bibitem{Men05}%7
-Meneton~P, Jeunemaitre~X, de~Wardener~HE, et~al. Links between dietary salt
-  intake, renal salt handling, blood pressure, and cardiovascular diseases.
-  Physiol Rev. 2005 Apr;85:679--715.
-
-\bibitem{DCK03}%8
-Dostorovsky~JO, Carr~DB, Koltzenburg~M, editors. Proceedings of the 10th World
-  Congress on Pain; 2002 Aug~17--22; San Diego, CA. Seattle: IASP Press; c2003.
-
-\bibitem{Hor98}%9
-Horrobin~DF, Lampinskas~P. The commercial development of food plants used as
-  medicines. In: Prendergast~HD, Etkin~NL, Harris~DR, et~al., editors. Plants
-  for food and medicine. Proceedings of the Joint Conference of the Society for
-  Economic Botany and the International Society for Ethnopharmacology; 1996
-  Jul~1--6; London. Kew (UK): Royal Botanic Gardens; 1998. p. 75--81.
-
-\bibitem{Ant03}%10
-Antani~S, Long~LR, Thoma~GR, et~al. Anatomical shape representation in spine
-  x-ray images. Paper presented at: VIIP 2003. Proceedings of the 3rd IASTED
-  International Conference on Visualization, Imaging and Image Processing;
-  2003 Sep~8--10; Benalmadena, Spain.
-
-\bibitem{Zha05}%11
-Zhao~C. Development of nanoelectrospray and application to protein research and
-  drug discovery [dissertation]. Buffalo (NY): State University of New York at
-  Buffalo; 2005.
-
-\bibitem{Rog05}%12
-Roguskie~JM. The role of \emph{Pseudomonas aeruginosa} 1244 pilin glycan in
-  virulence [master's thesis]. [Pittsburgh (PA)]: Duquesne University; 2005.
-
-\bibitem{SRW05}%13
-Savage~E, Ramsay~M, White~J, et~al. Mumps outbreaks across England and Wales
-  in 2004: Observational study. BMJ. 2005;330(7500):1119--1120 [cited 2005
-  May~31]; Available from: http://bmj.bmjjournals.com/cgi/reprint/330/7500/1119.
-
-\bibitem{Gau05}%14
-Gaul~G. When geography influences treament options. Washington Post (Maryland
-  Ed.). 2005 Jul~24;Sect.~A:12 (col.~1).
-
-\bibitem{BGC04}%15
-Berrino~F, Gatta~G, Crosignani~P. [Case-control evaluation of screening
-  efficacy]. Epidemiol Prev. 2004 Nov--Dec;28:354--359. Italian.
-
-\bibitem{PI51}%16
-Piaget~J, Inhelder~B. La gen{\`e}se de l'id{\'e}e de hasard chez l'enfant
-  [The origin of the idea of chance in the child]. Paris: Presses
-  Universitaires de France; 1951.
-
-\end{thebibliography}
-\bigskip
-\noindent This was produced by typing:
-\begin{verbatim}
-\begin{thebibliography}{99}
-
-\bibitem{Jen05}%1
-Jenkins~PF. Making sense of the chest x-ray: a hands-on guide. New York
- (NY): Oxford University Press; 2005.
-
-\bibitem{Sch02}%2
-Schott~J, Priest~J. Leading antenatal classes: a practical guide. 2nd
- ed. Boston (MA): Books for Midwives; 2002.
-
-\bibitem{Wen95}%3
-Wenger~NK, Sivarajan~Froelicher~E, Smith~LK, et~al. Cardiac
- rehabilitation. Rockville (MD): Agency for Health Care Policy and
- Research (US); 1995.
-
-\bibitem{Sha78}%4
-Shakelford~RT. Surgery of the alimentary tract. Philadelphia (PA):
- W.B. Saunders; 1978. Chapter 2, Esophagoscopy; p. 29--40.
-
-\bibitem{AG98}%5
-Ambudkar~SV, Gottesman~MM, editors. {ABC} transporters: biomedical,
- cellular, and molecular aspects. San Diego (CA): Academic Press; 1998.
- (Methods in enzymology; vol. 292).
-
-\bibitem{Smi75}%6
-Smith~CE. The significance of mosquito longevity and blood-feeding
- behaviour in the dynamics of arbovirus infections. Med Biol.
- 1975;53:288--294.
-
-\bibitem{Men05}%7
-Meneton~P, Jeunemaitre~X, de~Wardener~HE, et~al. Links between dietary
- salt intake, renal salt handling, blood pressure, and cardiovascular
- diseases. Physiol Rev. 2005 Apr;85:679--715.
-
-\bibitem{DCK03}%8
-Dostorovsky~JO, Carr~DB, Koltzenburg~M, editors. Proceedings of the
- 10th World Congress on Pain; 2002 Aug~17--22; San Diego, CA. Seattle:
- IASP Press; c2003.
-
-\bibitem{Hor98}%9
-Horrobin~DF, Lampinskas~P. The commercial development of food plants
- used as medicines. In: Prendergast~HD, Etkin~NL, Harris~DR, et~al.,
- editors. Plants for food and medicine. Proceedings of the Joint
- Conference of the Society for Economic Botany and the International
- Society for Ethnopharmacology; 1996 Jul~1--6; London. Kew (UK): Royal
- Botanic Gardens; 1998. p. 75--81.
-
-\bibitem{Ant03}%10
-Antani~S, Long~LR, Thoma~GR, et~al. Anatomical shape representation in
- spine x-ray images. Paper presented at: VIIP 2003. Proceedings of the
- 3rd IASTED International Conference on Visualization, Imaging and
- Image Processing; 2003 Sep~8--10; Benalmadena, Spain.
-
-\bibitem{Zha05}%11
-Zhao~C. Development of nanoelectrospray and application to protein
- research and drug discovery [dissertation]. Buffalo (NY): State
- University of New York at Buffalo; 2005.
-
-\bibitem{Rog05}%12
-Roguskie~JM. The role of \emph{Pseudomonas aeruginosa} 1244 pilin
- glycan in virulence [master's thesis]. [Pittsburgh (PA)]: Duquesne
- University; 2005.
-
-\bibitem{SRW05}%13
-Savage~E, Ramsay~M, White~J, et~al. Mumps outbreaks across England and
- Wales in 2004: Observational study. BMJ. 2005;330(7500):1119--1120
- [cited 2005 May 31]; Available from:
- http://bmj.bmjjournals.com/cgi/reprint/330/7500/1119.
-
-\bibitem{Gau05}%14
-Gaul~G. When geography influences treament options. Washington Post
- (Maryland Ed.). 2005 Jul~24;Sect.~A:12 (col.~1).
-
-\bibitem{BGC04}%15
-Berrino~F, Gatta~G, Crosignani~P. [Case-control evaluation of screening
- efficacy]. Epidemiol Prev. 2004 Nov--Dec;28:354--359. Italian.
-
-\bibitem{PI51}%16
-Piaget~J, Inhelder~B. La gen{\`e}se de l'id{\'e}e de hasard chez
- l'enfant [The origin of the idea of chance in the child]. Paris:
- Presses Universitaires de France; 1951.
-
-\end{thebibliography}
-\end{verbatim}
-\bigskip
-\noindent Each entry takes the form:
-\begin{verbatim}
-\bibitem{key}%n Bibliography entry
-\end{verbatim}
-where `\texttt{key}' is the tag that is to be used as an argument for the \verb"\cite{}" commands in the text of the article and `\texttt{Bibliography entry}' is the material that is to appear in the list of references, suitably formatted. The commands
-\begin{verbatim}
-\usepackage[numbers,sort&compress]{natbib}
-\bibpunct[, ]{[}{]}{,}{n}{,}{,}
-\renewcommand\bibfont{\fontsize{10}{12}\selectfont}
-\makeatletter
-\def\NAT@def@citea{\def\@citea{\NAT@separator}}
-\makeatother
-\end{verbatim}
-need to be included in the preamble of your .tex file in order to generate the citations and bibliography as described above.
-
-Instead of typing the bibliography by hand, you may prefer to create the list of references using a \textsc{Bib}\TeX\ database. The \texttt{tfnlm.bst} file needs to be in your working folder or an appropriate directory, and the lines
-\begin{verbatim}
-\bibliographystyle{tfnlm}
-\bibliography{interactnlmsample}
-\end{verbatim}
-included where the list of references is to appear, where \texttt{tfnlm.bst} is the name of the \textsc{Bib}\TeX\ bibliography style file for Taylor \& Francis' NLM reference style and \texttt{interactnlmsample.bib} is the bibliographic database included with the \textsf{Interact}-NLM \LaTeX\ bundle (to be replaced with the name of your own .bib file). \LaTeX/\textsc{Bib}\TeX\ will extract from your .bib file only those references that are cited in your .tex file and list them in the References section.
-
-Please include a copy of your .bib file and/or the final generated .bbl file among your source files if your .tex file does not contain a reference list in a \texttt{thebibliography} environment.
-
-
-\section{Appendices}
-
-Any appendices should be placed after the list of references, beginning with the command \verb"\appendix" followed by the command \verb"\section" for each appendix title, e.g.
-\begin{verbatim}
-\appendix
-\section{This is the title of the first appendix}
-\section{This is the title of the second appendix}
-\end{verbatim}
-produces:\medskip
-
-\noindent\textbf{Appendix A. This is the title of the first appendix}\medskip
-
-\noindent\textbf{Appendix B. This is the title of the second appendix}\medskip
-
-\noindent Subsections, equations, figures, tables, etc.\ within appendices will then be automatically numbered as appropriate. Some theorem-like environments may need to have their counters reset manually (e.g.\ if they are not numbered within sections in the main text). You can achieve this by using \verb"\numberwithin{remark}{section}" (for example) just after the \verb"\appendix" command.
-
-Note that if the \verb"endfloat" package is used on a document containing any appendices, the \verb"\processdelayedfloats" command must be included immediately before the \verb"\appendix" command in order to ensure that the floats belonging to the main body of the text are numbered as such.
-
-%\processdelayedfloats %%% See above for an explanation of why this command might be needed here.
-
-\appendix
-
-\section{Troubleshooting}
-
-Authors may occasionally encounter problems with the preparation of a manuscript using \LaTeX. The appropriate action to take will depend on the nature of the problem:
-\begin{enumerate}
-\item[(i)] If the problem is with \LaTeX\ itself, rather than with the actual macros, please consult an appropriate \LaTeXe\ manual for initial advice. If the solution cannot be found, or if you suspect that the problem does lie with the macros, then please contact Taylor \& Francis for assistance (\texttt{latex.helpdesk@tandf.co.uk}), clearly stating the title of the journal to which you are submitting.
-\item[(ii)] Problems with page make-up (e.g.\ occasional overlong lines of text; figures or tables appearing out of order): please do not try to fix these using `hard' page make-up commands -- the typesetter will deal with such problems. (You may, if you wish, draw attention to particular problems when submitting the final version of your manuscript.)
-\item[(iii)] If a required font is not available on your system, allow \TeX\ to substitute the font and specify which font is required in a covering letter accompanying your files.
-\end{enumerate}
-
-
-\section{Obtaining the template and class file}
-
-\subsection{Via the Taylor \& Francis website}
-
-This article template and the \texttt{interact} class file may be obtained via the `Instructions for Authors' pages of selected Taylor \& Francis journals.
-
-Please note that the class file calls up the open-source \LaTeX\ packages booktabs.sty, epsfig.sty and rotating.sty, which will, for convenience, unpack with the downloaded template and class file. The template calls for natbib.sty and subfig.sty, which are also supplied for convenience.
-
-
-\subsection{Via e-mail}
-
-This article template, the \texttt{interact} class file and the associated open-source \LaTeX\ packages are also available via e-mail. Requests should be addressed to \texttt{latex.helpdesk@tandf.co.uk}, clearly stating for which journal you require the template and class file.
-
+\bibliographystyle{chicago}
+\spacingset{1}
+\bibliography{IISE-Trans}
+	
 \end{document}
