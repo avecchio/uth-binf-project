@@ -26,29 +26,21 @@
                                          {1.5ex \@plus .2ex}%
                                          {\normalfont\normalsize\fontfamily{phv}\fontsize{14}{17}\selectfont}}
     \makeatother
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	
-	%%%%% IISE Transactions package list %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 	\usepackage{amsmath}
 	\usepackage{graphicx}
 	\usepackage{enumerate}
 	\usepackage{natbib} %comment out if you do not have the package
 	\usepackage{url} % not crucial - just used below for the URL
-	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	
-	%%%%% Author package list and commands %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	%%%%% Here are some examples %%%%%%%%%%%%%%
-	%	\usepackage{amsfonts, amsthm, latexsym, amssymb}
-	%	\usepackage{lineno}
-	%	\newcommand{\mb}{\mathbf}
-	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	
+	\graphicspath{ {images/} }
+
 	\begin{document}
 		
-			%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-		\def\spacingset#1{\renewcommand{\baselinestretch}%
-			{#1}\small\normalsize} \spacingset{1}
-		%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\def\spacingset#1{\renewcommand{\baselinestretch}%
+		{#1}\small\normalsize} \spacingset{1}
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 		
     \title{Non Coding RNA in Growth Retardation}
     \author{BMI 5330 - Term Project \\
@@ -78,6 +70,14 @@ Genetic expression is a biochemical process for which a specified quantity of pr
 
 Non coding RNA is classified as RNA that is not translated into protein (Gibb et al., 2011). There exist numerous types of non coding RNA that regulate messenger RNA or are involved in post transcriptional modifications steps of genetic expression. Non coding RNA are classified based on size and a generic set of functions. Described in Macfarlane & Murphy, (2010), MicroRNA is a short nucleotide sequence of ~20bp that assembles into a RNA-induced silencing complex. This complex targets a specific messenger RNA for which to regulate the amount produced (Macfarlane & Murphy, 2010). Circular RNA is the only closed loop RNA in which the 5’ and 3’ ends fuse to form a circular loop (Yu & Kuo, 2019). Circular RNA is formed from introns or exons that are a bi product of alternative splicing. The general function of Circular RNA involves interactions (transport/decoy) of microRNA (Yu & Kuo, 2019). Long non coding RNA (Gibb et al., 2011) is a generic classification of non coding RNA that encompasses other variety of non coding RNA such as lincRNA. Most forms of long non coding RNA either perform regulatory functions of messenger RNA, or are involved in enzymatic reactions (Gibb et al., 2011). The individual functions of these RNAs are determined by both structure (secondary/tertiary) and structural components. Some examples of structural components in ncRNA include hairpins, stems, multi loops, and interior loops (Zampetaki et al., 2018). Examples of these structures can be viewedin Figure 1. 
 
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=8cm]{rna-struct}
+	\caption{A diagram of the following non coding RNA structural components: stem, bubble hairpin.
+	}
+	\label{fig:mesh1}
+\end{figure}
+
 If any process within the expression of a gene is disrupted, an irregular amount of protein would be produced. This undesirable behavior would result in some form of illness. Two studies performed discovered that dysfunctional non coding RNA resulted in disease. The first study performed by Zhou & Li (2021) was an investigation into Hereditary Kidney Disorders that discovered mutations in either the PKD1 or PKD2 genes. These mutations alter the functionality in either long non coding RNA or microRNA (Zhou & Li, 2021). Thereby, these kidney disorders are a result of destructive behavior within the cell originating from these dysfunctional non coding RNA. Some examples reported in Zhou & Li (2021), describe the negative impact of these non coding RNA which includes the repression of expressing the PKD1 or PKD2 gene, defects in the mitochondrial metabolism or in severe circumstances, bring about apoptosis. The second study was a systematic review by Xu et al. (2021) for literature involving the dysregulation of extracellular vesicles that transport non coding RNA between cells. In this review, the authors amassed evidence of dysfunctional RNA resulting in neurodegenerative disorders. It was found that Long non coding RNAs were attributed to Parkinsons Disease, and both circular RNA and microRNA were linked to Alzheimer's disease (Xu et al., 2021). The results of the investigation found that dysfunctional Long non coding RNA, micro RNA or circular RNA that is transported via extra cellular vesicles are damaging to the cell such in such a manner as to cause neuro degenerative diseases (Xu et al., 2021). Thus, there exists significant experimental evidence of dysfunctional non coding RNA resulting in disease.  
 
 In 2018, a study by Giral & Kratzer (2018) examined the frequency of genome wide associated variants occurring within locations of interest within the gene. This analysis leveraged the NHGRI-EBI and GWASdb.v2 databases as these catalogs provide associations to a genomic region (enhancer, circRNA, promoter, exon) of which the variant occurs within. In this investigation, Giral & Kratzer (2018) reported that a significant majority (90%) of disease associated variants exist outside of coding regions. This implies that most diseases are due to improper expression of proteins compared to malformed protein structures. Although this discovery may alter the approach to understanding genetic expression and disease, the significant finding reported by this investigation was that 45% of all disease associated variants occur within long non coding RNA (Giral & Kratzer, 2018).   
@@ -92,13 +92,44 @@ With the increasing evidence of dysfunctional non coding RNA in disease, there w
 
  
 
-All data retrieval, operations and analyses were conducted through a python script (v 3.8.5). The script, all utilities and documentation are stored in a source code repository. All data can be viewed from a cloud hosted file share. The locations of the source code and the data are found within the Supplemental section of this article. All experimentally verified variants and genomic regions were acquired from several databases which are listed in Table 1. The programmatical method for retrieving the data either involved Api requests, file downloads or database (SQL) queries. Data obtained by SQL query or Api request are cached as a json file on the local directory. Genomic regions other than transcript regions (CDS, UTR 3’, UTR 5’) and non coding RNA were include in the event that Growth Retardation variants were associated with an unexpected region (enhancer, insulator). 
+All data retrieval, operations and analyses were conducted through a python script (v 3.8.5). The script, all utilities and documentation are stored in a source code repository. All data can be viewed from a cloud hosted file share. The locations of the source code and the data are found within the Supplemental section of this article. All experimentally verified variants and genomic regions were acquired from several databases which are listed in Table 1. The programmatical method for retrieving the data either involved Api requests, file downloads or database (SQL) queries. Data obtained by SQL query or Api request are cached as a json file on the local directory. Genomic regions other than transcript regions such as coding sequences (CDS) or untranslated regions (UTR 3’, UTR 5’) and non coding RNA were include in the event that Growth Retardation variants were associated with an unexpected region (enhancer, insulator). 
+
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=8cm]{workflow}
+	\caption{A diagram depicting the high level workflow of the python script used for the analysis.
+	}
+	\label{fig:mesh1}
+\end{figure}
 
 Several databases stored coordinate data for genomic regions or variants in the hg19 coordinate format. The current version of the human genome coordinate system is hg38. As a result, the coordinate systems for data sets retrieved from databases using the hg19 format were translated into the hg38 format via the LiftOver python package. The human genome coordinate format for each database is listed in Table 1. 
 
-The GENECODE annotations provides coordinate data for exons, coding regions (CDS), and both untranslated regions (UTR 3’, UTR 5’). To extract the coordinate data of the introns, the Bedtools software (Quinlan & Hall, 2010) suite was leveraged in a two step method that is displayed in Figure 2. The coordinates for overlapping exons are initially merged. Then, the coordinates for the gaps between merged exons were calculated. These gapped coordinates represent the introns existing within the transcripts. Exons were not included in the analysis as exons are comprised of CDS, UTR 3’ and UTR 5’ regions. The inclusion of CDS, UTR 3’ and UTR 5’ regions were included in favor to provide additional granularity for the frequency analyses. 
+The GENECODE annotations provides coordinate data for exons, coding sequences (CDS), and both untranslated regions (UTR 3’, UTR 5’). To extract the coordinate data of the introns, the Bedtools software (Quinlan & Hall, 2010) suite was leveraged in a two step method that is displayed in Figure 2. The coordinates for overlapping exons are initially merged. Then, the coordinates for the gaps between merged exons were calculated. These gapped coordinates represent the introns existing within the transcripts. Exons were not included in the analysis as exons are comprised of CDS, UTR 3’ and UTR 5’ regions. The inclusion of CDS, UTR 3’ and UTR 5’ regions were included in favor to provide additional granularity for the frequency analyses. 
+
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=8cm]{bed-tools}
+	\caption{A diagram exhibiting BedTool processes used to extract intron coordinates from known exon and transcript coordinates.
+	}
+	\label{fig:mesh1}
+\end{figure}
 
 Circular RNA databases, including CircBase stores only a single coordinate set (start and end position) which includes all spliced sequences found within the DNA in addition to extraneous genomic information. The sub coordinates of circular RNA which represents introns and exons that are a bi product of alternative splicing were obtained through an algorithmic process that is displayed in Figure 3. For this process, the Longest Common Subsequence algorithm locates a shared genomic sequence that exists in both the inclusive genomic sequence and the corresponding consensus RNA sequence provided by CircBase. The coordinates for this sequence are obtained and transformed to reflect the absolute coordinate found within the hg38 coordinate system. The shared sequence in the consensus RNA sequence is then replaced by a marker. This process is repeated until only markers remain. This process generates a set of sub coordinates of the introns and exons used to construct the representative circular RNA. The sub coordinate sets are then reindexed by means of the resulting markers to ensure proper ordering when reconstructing the consensus string for the structural analysis. 
+
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=8cm]{circ-rna}
+	\caption{A demonstration of the formation of circular RNA from intron and exon biproducts of alternative splicing.
+	}
+	\label{fig:mesh1}
+\end{figure}
+
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=8cm]{circrna-algorithm}
+	\caption{An workflow of steps for extracting the sub coordinates of circular RNA by means of the longest common subsequence algorithm.}
+	\label{fig:mesh1}
+\end{figure}
 
 After obtaining all Growth Retardation variants and genomic regions of interest, variants were then associated to genomic regions by coordinates. The association occurs under the condition that the variants start or end position was within, and includes, the defined start and end position for the genomic region. These associated data sets were analyzed through a set of frequency analyses. 
 
@@ -108,6 +139,22 @@ The structures for all non coding RNAs and associated variants were generated in
 
 An initial structural analysis measured the frequency of a structural component occurring within all non coding RNA reference structures compared to all mutant structures. A second structural analysis was performed to measure the deviation in orientation of the mutated structure compared to the associated non coding RNA reference structure. A string differential algorithm was applied to generate a list of modifications required to transform the reference structural string into the mutated structural string. A percent change to the reference structural string was calculated using the quantity of modifications produced by the string differential operation.  
 
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=8cm]{struct-freq}
+	\caption{A diagram depicting an example of an RNA structural string and how structural components are counted from this string.
+	}
+	\label{fig:mesh1}
+\end{figure}
+
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=8cm]{diff-process}
+	\caption{A high level overview of the algorithmic process to determine the percent difference of two RNA structural strings.
+	}
+	\label{fig:mesh1}
+\end{figure}
+
 \section{Results} \label{s:results}
 
 \subsection{
@@ -115,21 +162,140 @@ An initial structural analysis measured the frequency of a structural component 
 
 The database search results for Growth Retardation variants and regions associated with the FTO gene can be viewed in Table 1. The FTO gene consists of 23 transcripts which contains 145 unique exons and 50 shared intronic regions. The FTO gene contains a single promoter, 6 insulators and 107 enhancers. The quantity of enhancers obtained is due to the inclusion of enhancers from all tissue types. Only two types of non coding RNA are found within the FTO gene. There are 19 circular RNA and 19 long non coding RNA. 
 
+
+    \begin{table}[!hbt]
+      % Center the table
+      \begin{center}
+      % Fold Inductions
+      \caption{QtPCR Fold Inductions}
+      \label{tab:simParameters}
+      % Table itself: here we have two columns which are centered and have lines to the left, right and in the middle: |c|c|
+      \begin{tabular}{|c|c|c|}
+        \hline
+		Database           & Data Type(s) & Result(s) \\
+        \hline
+		GWAS Catalog & Variant & 0 \\
+        \hline
+		ClinVar & Variant & 117 \\
+        \hline
+		Genecode & CDS, UTR 3, UTR 5  & 109, 27, 16  \\
+        \hline
+		Genecode & Exon (not used), Intron  & 145, 50 \\
+        \hline
+		RNACentral & NcRNA  & 19 \\
+        \hline
+		CircBase & CircRNA  & 19 \\
+        \hline
+		SnoDB & SnoRNA  & 0 \\
+        \hline
+		Eukaryotic Promoter Db & Promoter & 1 \\
+        \hline
+		Enhancer Atlas & Enhancer & 107 \\
+        \hline
+		CTCFBSDB & Insulator & 0 \\
+        \hline
+      \end{tabular}
+      \end{center}
+    \end{table}
+
 \subsection{
 \emph{Freq Analysis}} \label{s:conclusion}
 
+\subsubsection{\emph{Sub-subsection heading 3.1.1}} \label{s:methods.1.1}
+
 Table 2 in Appendix E displays the frequency for variants occurring within specific region types. It was found that no variants related to Growth Retardation occur within the enhancers, insulators or long non coding RNA. Seen in Figure 4, there exists a concentration (97%) of variants within CDS, UTR 3’ and circular RNA regions. All other regions exhibit at least one Growth Retardation variant.  
+
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=8cm]{variant_frequencies}
+	\caption{The frequency of variants within types of genomic regions.
+	}
+	\label{fig:mesh1}
+\end{figure}
+
+\subsubsection{\emph{Sub-subsection heading 3.1.1}} \label{s:methods.1.1}
 
 The frequency of a variants within genomic region types is displayed in Figure 4. It was found that 17% of the variants impact three regional types, 71% of variants impacts two regional types and only 12% of variants impact only a single region type. The frequency of variants intersecting with two or three types of genomic regions correlates to the original frequency graph. The frequency analysis results for the number of regions for which variants intersect is displayed in Figure 5. The highest frequencies  of variants were found to intersect 2, 3, 6, and 7 genomic regions. This displays a significant level of overlap of genomic regions within the FTO gene.  
 
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=8cm]{unique_non_overlap_variants}
+	\caption{The frequency of variants intersecting a certain quantity of genomic regions. These regions could be of the same type.
+	}
+	\label{fig:mesh1}
+\end{figure}
+
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=8cm]{unique_overlap_variants}
+	\caption{The frequency of variants intersecting a certain quantity of genomic region types.
+	}
+	\label{fig:mesh1}
+\end{figure}
+
+\subsubsection{\emph{Sub-subsection heading 3.1.1}} \label{s:methods.1.1}
+
 The expected distribution of the variants anticipates 1.4% of variants within circular RNA, 11.7% of variants within enhancers, 0.4% of variants in coding regions, and 7% of variants within long non coding RNA. The results of the chi-square test revealed that the observed distribution of Growth Retardation variants among regions differed significantly from the expected distribution (Df=8, p > 0.0001). Of the observed concentration of variants and genomic regions, a total of 66 of the 117 Growth Retardation variants were found to intersect circular RNA and not the coding sequences. 
+
+	\begin{table}[!hbt]
+      % Center the table
+      \begin{center}
+      % Fold Inductions
+      \caption{QtPCR Fold Inductions}
+      \label{tab:simParameters}
+      % Table itself: here we have two columns which are centered and have lines to the left, right and in the middle: |c|c|
+      \begin{tabular}{|c|c|c|c|c|}
+        \hline
+		Genomic Region & Actual & Expected \\
+        \hline
+        Insulator & 0 & 8 \\
+        \hline
+        Enhancer & 0 & 118 \\
+        \hline
+        Coding Sequences & 313 & 4 \\
+        \hline
+        UTR 3 & 259 & 28 \\
+        \hline
+        UTR 5 & 24 & 1 \\
+        \hline
+        Intron & 5 & 755 \\
+        \hline
+        Promoter & 1 & 0 \\
+        \hline
+        Long Non Coding RNA & 0 & 71 \\
+        \hline
+        Circular RNA & 399 & 14 \\
+        \hline
+      \end{tabular}
+      \end{center}
+    \end{table}
 
 \subsection{
 \emph{Struct Analysis}} \label{s:conclusion}
 
+\subsubsection{\emph{Sub-subsection heading 3.1.1}} \label{s:methods.1.1}
+
 Figure 4 displays the structural component analysis comparing structural frequencies within all non coding RNA reference structures to mutant structures. It was found that all structural components are significantly more frequent in mutant structures compared to the reference ncRNA structures. Only unpaired regions and segments are uninterpretable due to the infrequent occurrences of these structures within circular RNA.  
 
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=8cm]{boxes}
+	\caption{Grouped boxplots of the frequency of structural components within all reference structures compared to mutated structures.
+	}
+	\label{fig:mesh1}
+\end{figure}
+
+\subsubsection{\emph{Sub-subsection heading 3.1.1}} \label{s:methods.1.1}
+
 The analysis of difference in structural orientation between mutated structures and associated reference structures displayed a wide range of frequencies in percent differences. Nearly half (45%) of the structural differences exhibited less than 10% of structural changes. 54% of mutated structures differed from the reference structure by more than 20%. One third of all structural changes exhibited a significant degree of structural differences (>90%) in comparison to the reference structures.  
+
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=8cm]{structs}
+	\caption{A histogram of the percent differences between variant non coding RNA structures and associated reference RNA non coding RNA structures.
+	}
+	\label{fig:mesh1}
+\end{figure}
 
 \section{Discussion} \label{s:discussion}
 
@@ -229,54 +395,61 @@ Zhou, J. X., & Li, X. (2021). Non-Coding RNAs in Hereditary Kidney Disorders. In
 
 \section{Supplementals} \label{s:supplementals}
 
-%\begin{figure}[t]
-%	\centering
-%	\includegraphics[width=8cm]{infa-bactin}
-%	\caption{Logarithmic fold Inductions for Interferon-$\alpha$ vs $\beta$-actin.
-%	Refer to the analysis subsection of the methods section for insight on how this graph was constructed.
-%	}
-%	\label{fig:mesh1}
-%\end{figure}
+    \begin{table}[!hbt]
+      % Center the table
+      \begin{center}
+      % Fold Inductions
+      \caption{QtPCR Fold Inductions}
+      \label{tab:simParameters}
+      % Table itself: here we have two columns which are centered and have lines to the left, right and in the middle: |c|c|
+      \begin{tabular}{|c|c|c|c|c|}
+        \hline
+		Database           & Version & Updated & Coordinate Format & Url \\
+        \hline
+		GWAS Catalog & NA & Frequently & hg38 & https://www.ebi.ac.uk/gwas/ \\
+        \hline
+		ClinVar & NA & Frequently & hg38 & https://www.ncbi.nlm.nih.gov/clinvar/ \\
+        \hline
+		Genecode & V37 & 02-2021 & hg38 & https://www.gencodegenes.org/ \\
+        \hline
+		RNACentral & NA & & hg19 & https://rnacentral.org/ \\
+        \hline
+		CircBase & 1.0 & 2017 & hg19 & http://www.circbase.org/ \\
+        \hline
+		SnoDB & 1.2.1 & Unknown & hg19 & http://scottgroup.med.usherbrooke.ca/snoDB/ \\
+        \hline
+		Eukaryotic Promoter Db & Unknown & 2019 & hg38 & https://epd.epfl.ch//index.php \\
+        \hline
+		Enhancer Atlas & 2.0 & Unknown & hg19 & http://www.enhanceratlas.org/ \\
+        \hline
+		CTCFBSDB & 2.0 & 2013 & hg19 & https://insulatordb.uthsc.edu/ \\
+        \hline
+      \end{tabular}
+      \end{center}
+    \end{table}
 
+    \begin{table}[!hbt]
+      % Center the table
+      \begin{center}
+      % Fold Inductions
+      \caption{QtPCR Fold Inductions}
+      \label{tab:simParameters}
+      % Table itself: here we have two columns which are centered and have lines to the left, right and in the middle: |c|c|
+      \begin{tabular}{|c|c|}
+        \hline
+	  		# Region Types Intersected           & Frequency \\
+        \hline
+		1	& 14 \\
+        \hline
+		2	& 82 \\
+        \hline
+		3	& 20 \\
+        \hline
+		4	&  1 \\
+        \hline
 
-\section{Section heading 2} \label{s:sec2}
-The review of literature can be a separate section but it can be merged with the introduction section. One can find a number of reference examples at the end of this template, like,
-\begin{itemize}
-\item A book: \cite{Hastie2009}.
-\item A journal article: \cite{Byon2013}.
-\item A conference paper: \cite{Breunig2000}.
-\item A book chapter: \cite{Yang2010}.
-\item A technical report: \cite{Kelley2007}.
-\end{itemize}
-
-\section{Section heading 3} \label{s:methods}
-First-level headings should be in bold.
-
-\subsection{
-\emph{Subsection heading 3.1}} \label{s:methods.1}
-Second-level headings should be in bold italics.
-
-\subsubsection{\emph{Sub-subsection heading 3.1.1}} \label{s:methods.1.1}
-
-Third-level headings should be in italics.
-	
-\subsection{\emph{Subsection heading 3.2}} \label{s:methods.2}
-
-
-\subsection{\emph{Subsection heading 3.3}} \label{s:methods.3}
-	
-\section{Section heading 4} \label{s:numerical}
-Perhaps numerical analysis of performance, comparison, and demonstration of applicability and impact using real data.
-
-\section{Conclusion}\label{s:conclusion}
-A paper ends with a conclusion or summary section.
-
-\if0\blind{
-\section*{Acknowledgements}
-The authors acknowledge the generous support from the funding agency of XYZ.	} \fi
-
-\bibliographystyle{chicago}
-\spacingset{1}
-\bibliography{IISE-Trans}
+      \end{tabular}
+      \end{center}
+    \end{table}
 	
 \end{document}
