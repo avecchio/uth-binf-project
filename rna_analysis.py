@@ -25,7 +25,6 @@ import errno
 import seaborn as sns
 import difflib
 
-
 from scipy.stats import chisquare
 from liftover import get_lifter
 from Bio import SeqIO
@@ -36,6 +35,7 @@ from collections import defaultdict, OrderedDict
 from gffutils.pybedtools_integration import tsses
 from copy import deepcopy
 from collections import OrderedDict, Callable
+from multiprocessing import Pool
 
 
 ######################
@@ -109,6 +109,31 @@ def dictionary_to_frame(dictionary, datatype):
         transforms.append(transform)
     return transforms
 
+def pg_query(conn_string, sql_query):
+    try:
+        print('connecting')
+        conn = psycopg2.connect(conn_string)
+        cur = conn.cursor()
+        print('executing query')
+        cur.execute(sql_query)
+        row = cur.fetchone()
+        print('fetching results')
+
+        results = []
+        while row is not None:
+            results.append(list(row))
+            row = cur.fetchone()
+        cur.close()
+        return results
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+        return []
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 ######################
 ### Region Manipulation
 ######################
@@ -171,6 +196,54 @@ def read_bed_file(biotype, gene_chromosome, gene_start, gene_end, file_path):
         counter += 1
     return genecode_regions
 
+def filter_nc_rnas(chromosome, nc_rnas):
+    filtered_nc_rnas = {}
+    rna_ids = []
+    for rna in nc_rnas:
+        start = rna['sr_region_start']
+        end = rna['sr_region_stop']
+        if start is not None and end is not None and rna['acc_species'] == 'Homo sapiens':
+            coord_key = f'{start}-{end}'
+            if coord_key not in filtered_nc_rnas:
+                filtered_nc_rnas[coord_key] = rna
+
+    nc_rnas_list = []
+    for rna in filtered_nc_rnas:
+        start = filtered_nc_rnas[rna]['sr_region_start']
+        end = filtered_nc_rnas[rna]['sr_region_stop']
+        biotype = filtered_nc_rnas[rna]['rna_type']
+        identifier = filtered_nc_rnas[rna]['sr_region_name']
+        assembly = filtered_nc_rnas[rna]['sr_assembly']
+        strand = filtered_nc_rnas[rna]['sr_strand']
+        if assembly == 'GRCh19':
+            nc_rnas_list.append({
+                'identifier': identifier,
+                'coordinates': [{
+                    'start': convert_hg19_to_hg38(chromosome, int(start)),
+                    'end': convert_hg19_to_hg38(chromosome, int(end)),
+                    'index': 0
+                }],
+                'type': biotype,
+                'strand': strand,
+                'meta': {}
+            })
+        elif assembly == 'GRCh38':
+            nc_rnas_list.append({
+                'identifier': identifier,
+                'coordinates': [{
+                    'start': int(start),
+                    'end': int(end),
+                    'index': 0
+                }],
+                'type': biotype,
+                'strand': strand,
+                'meta': {}
+            })
+        else:
+            print(f'Error: Unknown assembly type [{assembly}] for {identifier}')
+
+    return nc_rnas_list
+
 ######################
 ### Structural Analysis
 ######################
@@ -184,6 +257,8 @@ def get_structure_string(path):
             return None
 
 def str_diff_percent(reference, mutant):
+    reference = data['reference']
+    mutant = data['mutant']
     output_list = [li for li in difflib.ndiff(reference, mutant) if li[0] != ' ']
     return min(len(output_list), len(reference)) / len(reference) * 100
 
@@ -214,7 +289,6 @@ def remap_key(key):
     else:
         return key
 
-
 ######################
 ### Data & Analysis
 ######################
@@ -233,11 +307,6 @@ def calculate_positions(dna, dna_subset):
     start = dna.index(dna_subset) + 1
     end = start + subset_length - 1
     return start, end
-
-def bin_averages(data):
-    bins = np.array([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
-    print(np.histogram(data, bins))
-
 
 def calculate_random_chance_statistics(regions):
     total_number_of_variants = 0
@@ -346,6 +415,15 @@ def plot_bar_chart(frequencies_dict, xlabel, ylabel, title, filename, order_key,
         sns_plot.set_xticklabels(sorted_labels, fontsize=10)
     sns_plot.get_figure().savefig(filename)
 
+def plot_boxplot(data, xname, yname, xlabel, ylabel, title, filename):
+    sns.set_theme(style="ticks", palette="pastel")
+
+    sns_plot = sns.boxplot(x=xname, y=yname,
+                hue="Forms", palette=["m", "g"],
+                data=data)
+    sns.despine(offset=10, trim=True)
+    sns_plot.set(xlabel=xlabel, ylabel=ylabel, title=title)
+    sns_plot.get_figure().savefig(fname)
 
 def plot_histogram(data, xname, xlabel, ylabel, title, fname):
     sns.set_theme(style="ticks", palette="pastel")
@@ -440,12 +518,9 @@ def count_statistical_regional_variant_frequencies(regions, variants):
     
     return variant_regions
 
-
-
 ######################
 ### RNA Structures
 ######################
-
 
 def dna_to_rna(dna):
     return dna.replace("T", "U")
@@ -500,9 +575,6 @@ def get_unique_items(items):
         if item not in unique_items:
             unique_items.append(item)
     return unique_items
-
-
-
 
 def generate_structural_variants(chromosome, rna_regions):
     rna_directory = 'rna_struct'
@@ -559,7 +631,7 @@ def generate_structural_variants(chromosome, rna_regions):
             struct_paths[unmutated_rna_path]['sub_paths'].append(mutated_rna_path)
     with open('structural_paths.json', 'w') as outfile:
         json.dump(struct_paths, outfile)
-
+    return struct_paths
 
 ######################
 ### Data extraction
@@ -755,30 +827,6 @@ def get_clinvar_entry(id, condition):
         print(e)
         print('-----------------')
     return variants
-
-def pg_query(conn_string, sql_query):
-    try:
-        print('connecting')
-        conn = psycopg2.connect(conn_string)
-        cur = conn.cursor()
-        print('executing query')
-        cur.execute(sql_query)
-        row = cur.fetchone()
-        print('fetching results')
-
-        results = []
-        while row is not None:
-            results.append(list(row))
-            row = cur.fetchone()
-        cur.close()
-        return results
-
-    except (Exception, psycopg2.DatabaseError) as error:
-        print(error)
-        return []
-    finally:
-        if conn is not None:
-            conn.close()
 
 
 def query_rnacentral(params):
@@ -1104,10 +1152,11 @@ def extract_genecode_regions(file_path, ensembl_gene_id):
 
     return features
 
-def awk_gff_extract(feature_type):
-    return 'awk \'BEGIN{OFS="\t";} $3=="' + feature_type + '" {print $1,$4-1,$5}\''
 
 def get_exons_and_introns_from_genecode(genecode_path, working_directory):
+    def awk_gff_extract(feature_type):
+        return 'awk \'BEGIN{OFS="\t";} $3=="' + feature_type + '" {print $1,$4-1,$5}\''
+
     if path.exists(f'{working_directory}/genecode_exon_merged.bed') and path.exists(f'{working_directory}/genecode_introns.bed'):
         return f'{working_directory}/genecode_exon_merged.bed', f'{working_directory}/genecode_introns.bed'
 
@@ -1126,53 +1175,6 @@ def get_ncbi_clinical_variants(params):
         variants = variants + variant_coordinates
     return variants
 
-def filter_nc_rnas(chromosome, nc_rnas):
-    filtered_nc_rnas = {}
-    rna_ids = []
-    for rna in nc_rnas:
-        start = rna['sr_region_start']
-        end = rna['sr_region_stop']
-        if start is not None and end is not None and rna['acc_species'] == 'Homo sapiens':
-            coord_key = f'{start}-{end}'
-            if coord_key not in filtered_nc_rnas:
-                filtered_nc_rnas[coord_key] = rna
-
-    nc_rnas_list = []
-    for rna in filtered_nc_rnas:
-        start = filtered_nc_rnas[rna]['sr_region_start']
-        end = filtered_nc_rnas[rna]['sr_region_stop']
-        biotype = filtered_nc_rnas[rna]['rna_type']
-        identifier = filtered_nc_rnas[rna]['sr_region_name']
-        assembly = filtered_nc_rnas[rna]['sr_assembly']
-        strand = filtered_nc_rnas[rna]['sr_strand']
-        if assembly == 'GRCh19':
-            nc_rnas_list.append({
-                'identifier': identifier,
-                'coordinates': [{
-                    'start': convert_hg19_to_hg38(chromosome, int(start)),
-                    'end': convert_hg19_to_hg38(chromosome, int(end)),
-                    'index': 0
-                }],
-                'type': biotype,
-                'strand': strand,
-                'meta': {}
-            })
-        elif assembly == 'GRCh38':
-            nc_rnas_list.append({
-                'identifier': identifier,
-                'coordinates': [{
-                    'start': int(start),
-                    'end': int(end),
-                    'index': 0
-                }],
-                'type': biotype,
-                'strand': strand,
-                'meta': {}
-            })
-        else:
-            print(f'Error: Unknown assembly type [{assembly}] for {identifier}')
-
-    return nc_rnas_list
 
 def get_sequence_from_ensembl(chromosome, start, end):
     server = "https://rest.ensembl.org"
@@ -1184,16 +1186,18 @@ def get_sequence_from_ensembl(chromosome, start, end):
     return ''.join(dna.split("\n")[1:])
 
 
-def main():
+def main(gene_name, condition):
+    # set working directory
     working_directory = 'data'
-    gene_name = 'FTO'
 
+    # create directory to store data
     make_directory(working_directory)
-    condition = 'Growth retardation'
 
+    # query and store ensembl results in data directory
     condition_filename = '_'.join(condition.split(" "))
     ensemble_cds_metadata = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_ensembl.json', get_ensembl_data, [gene_name])
 
+    # extract metadata from ensembl
     gene_id = ensemble_cds_metadata['id']
     print(gene_id)
     region_name = ensemble_cds_metadata['seq_region_name']
@@ -1201,19 +1205,41 @@ def main():
     gene_start = ensemble_cds_metadata['start']
     gene_end = ensemble_cds_metadata['end']
 
+    # Download all enhancer files
     associated_enhancer_paths = sync_gene_enhancers(working_directory)
     
-    sync_databases(working_directory, 'Hs_EPDnew.bed', 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
-    sync_databases(working_directory, 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3', 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)
-    exon_bed_path, intron_bed_path = get_exons_and_introns_from_genecode(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', working_directory)
-        
-    sync_databases(working_directory, 'snodb.tsv', 'http://scottgroup.med.usherbrooke.ca/snoDB/csv', False)
-    sync_databases(working_directory, 'human-circdb.hg19.txt', 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
+    # Download promoter data archive
+    promoter_file = "Hs_EPDnew.bed"
+    sync_databases(working_directory, promoter_file, 'ftp://ccg.epfl.ch/epdnew/H_sapiens/current/Hs_EPDnew.bed', False)    
 
-    sync_databases(working_directory, 'insulators-experimental.hg19.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
-    sync_databases(working_directory, 'circbase_sequences.fasta', 'http://www.circbase.org/download/human_hg19_circRNAs_putative_spliced_sequence.fa.gz', True)
+    # Download promoter data archive
+    genecode_file = 'gencode.v37.chr_patch_hapl_scaff.annotation.gff3'
+    sync_databases(working_directory, genecode_file, 'ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.chr_patch_hapl_scaff.annotation.gff3.gz', True)
+
+    # Use cli operations to extract exons and introns from genecode
+    exon_bed_path, intron_bed_path = get_exons_and_introns_from_genecode(f'./{working_directory}/{genecode_file}', working_directory)
+        
+    # Download snodb data archive
+    snowdb_file = 'snodb.tsv'
+    sync_databases(working_directory, snowdb_file, 'http://scottgroup.med.usherbrooke.ca/snoDB/csv', False)
+
+    # Download circbase data archive
+    circdb_file = 'human-circdb.hg19.txt'
+    sync_databases(working_directory, circdb_file, 'http://www.circbase.org/download/hsa_hg19_circRNA.txt', False)
+
+    # Download insulator data archive
+    insulator_file = "insulators-experimental.hg19.txt"
+    sync_databases(working_directory, insulator_file, 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
+
+    # Download circbase reference sequences
+    circbase_fasta = "circbase_sequences.fasta"
+    sync_databases(working_directory, circbase_fasta, 'http://www.circbase.org/download/human_hg19_circRNAs_putative_spliced_sequence.fa.gz', True)
 
     db_stats = {}
+
+    #################
+    ### Query for variantts
+    #################
 
     variants = []
     gwas_snps = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_gwas_variants.json', query_gwas, [gene_name, condition])
@@ -1226,14 +1252,20 @@ def main():
 
     db_stats['clinvar'] = len(ncbi_clinical_variants)
 
+    #################
+    ### Extract regions for all files downloaded
+    #################
+
     regions = []
     rnas = []
 
-    experimental_insulators = extract_insulators(f'./{working_directory}/insulators-experimental.hg19.txt', gene_name, chromosome)
+    # insulators
+    experimental_insulators = extract_insulators(f'./{working_directory}/{insulator_file}', gene_name, chromosome)
     regions += experimental_insulators
 
     db_stats['insulators'] = len(experimental_insulators)
 
+    # enhancers
     enhancers = []
     for enhancer_path in associated_enhancer_paths:
         enhancers = enhancers + extract_enhancers(working_directory, enhancer_path, gene_id, chromosome)
@@ -1241,26 +1273,27 @@ def main():
 
     db_stats['enhancers'] = len(enhancers)
 
-
-    features = extract_genecode_regions(f'./{working_directory}/gencode.v37.chr_patch_hapl_scaff.annotation.gff3', gene_id)
+    # genecode features
+    features = extract_genecode_regions(f'./{working_directory}/{genecode_file}', gene_id)
     regions += features
 
     db_stats['cds'] = len(enhancers)
     db_stats['utr3'] = len(enhancers)
     db_stats['utr5'] = len(enhancers)
 
+    # introns
     introns = read_bed_file('intron', chromosome, gene_start, gene_end, intron_bed_path)
     regions += introns
 
     db_stats['introns'] = len(introns)
 
-    
-    promoters = extract_promoters(f'./{working_directory}/Hs_EPDnew.bed', gene_name)
+    # promoters
+    promoters = extract_promoters(f'./{working_directory}/{promoter_file}', gene_name)
     regions += promoters
 
     db_stats['promoters'] = len(promoters)
 
-
+    # all rna (rna central)
     nc_rnas = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_rna_central.json', query_rnacentral, [gene_name])
     filtered_nc_rnas = filter_nc_rnas(chromosome, nc_rnas)
 
@@ -1269,28 +1302,51 @@ def main():
     regions += filtered_nc_rnas
     rnas += filtered_nc_rnas
 
-    sno_rnas = extract_sno_rnas(f'./{working_directory}/snodb.tsv', chromosome, gene_name)
+    # sno rna
+    sno_rnas = extract_sno_rnas(f'./{working_directory}/{snowdb_file}', chromosome, gene_name)
     
     db_stats['sno_rnas'] = len(sno_rnas)
 
     regions += sno_rnas
     rnas += sno_rnas
 
-
-    circ_rna_sequences = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_circ_rna_sequences.json', load_fasta_file, [f'./{working_directory}/circbase_sequences.fasta'] )
-    circular_rnas = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_circ_rnas.json', extract_circular_rnas, [f'./{working_directory}/human-circdb.hg19.txt', gene_name, chromosome, circ_rna_sequences])
+    # circular rna
+    circ_rna_sequences = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_circ_rna_sequences.json', load_fasta_file, [f'./{working_directory}/{circbase_fasta}'] )
+    circular_rnas = db_cache(f'./{working_directory}/{gene_name}_{condition_filename}_circ_rnas.json', extract_circular_rnas, [f'./{working_directory}/{circdb_file}', gene_name, chromosome, circ_rna_sequences])
 
     db_stats['circbase'] = len(circular_rnas)
     regions += circular_rnas
     rnas += circular_rnas
     
+    #################
+    ### Variant Region Stats
+    #################
+
     overlap_variant_regions, unique_overlap_variant_regions = count_overlapping_variant_frequencies(regions, variants)
     regional_frequencies, region_type_lengths = count_emperical_regional_variant_frequencies(regions, variants)
     variant_regions = count_statistical_regional_variant_frequencies(regions, variants)
 
     filtered_rnas = filter_rnas(regional_frequencies)
 
-    generate_structural_variants(chromosome, filtered_rnas)
+    #################
+    ### Generate structures
+    #################
+
+    structure_paths = generate_structural_variants(chromosome, filtered_rnas)
+
+    averages, pandas_structure_components = compute_structural_statistics(structure_paths)
+
+    #################
+    ### Plot structure analyses
+    #################
+
+    plot_boxplot(pandas_structure_components, "key", "value", 'Structures', 'Frequency', "Structral Component Frequency Comparisons", "structure_components.png")    
+    arr_data = array_to_dataframe(array_to_dataframe(averages), 'averages')
+    plot_histogram(arr_data, 'averages', 'Percent Change in Structures', 'Frequency', 'Frequency of Percent Change in Structures', 'structure_percent_diffs.png')
+
+    #################
+    ### Modify association data
+    #################
 
     region_lengths = {}
     for region in region_type_lengths:
@@ -1307,12 +1363,16 @@ def main():
             counts = len(regional_frequencies[region_type][key]['variants'])
             regional_frequency_counts[region_type] += counts
 
-    variant_counts = sum(regional_frequency_counts.values()) # len(variants)
+    variant_counts = sum(regional_frequency_counts.values())
     variant_region_expected_frequencies = {}
     total_lengths = sum(list(region_lengths.values()))
     for region in region_lengths:
         length_proportion = region_lengths[region] / total_lengths
         variant_region_expected_frequencies[region] = variant_counts * length_proportion
+
+    #################
+    ### Plot variant region graphs
+    #################
 
     print(regional_frequency_counts)
     print(overlap_variant_regions)
@@ -1321,6 +1381,10 @@ def main():
     plot_bar_chart(regional_frequency_counts, 'Regions', 'Variant Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png', '', True)
     plot_bar_chart(overlap_variant_regions, 'Frequency of Overlapping Regions', 'Variant Frequency', 'Frequency of Variants in Overlapping Regions', 'unique_overlap_variants.png', '', False)
     plot_bar_chart(unique_overlap_variant_regions, 'Frequency of Unique Overlapping Regions', 'Variant Frequency', 'Frequency of Variants in Unique Overlapping Regions', 'unique_non_overlap_variants.png', '', False)
+
+    #################
+    ### Print statistics
+    #################
 
     print('dbstats')
     for stat in db_stats:
@@ -1348,4 +1412,8 @@ def main():
     else:
         print('Independent (H0 holds true)')
 
-main()
+# set gene name and condition
+gene_name = 'FTO'
+condition = 'Growth retardation'
+
+main(gene_name, condition)
