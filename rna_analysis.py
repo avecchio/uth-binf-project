@@ -37,6 +37,11 @@ from gffutils.pybedtools_integration import tsses
 from copy import deepcopy
 from collections import OrderedDict, Callable
 
+
+######################
+### File IO
+######################
+
 def make_directory(directory):
     try:
         os.makedirs(directory)
@@ -49,6 +54,235 @@ def decompress_gz_file(local_filepath):
         with open(unzipped_filename, 'wb') as f_out:
             shutil.copyfileobj(f_in, f_out)
     return unzipped_filename
+
+def load_fasta_file(params):
+    fasta_path = params[0]
+    data = {}
+    records = SeqIO.parse(fasta_path, "fasta")
+    for record in records:
+        identifier = record.id.split("|")[0]
+        data[identifier] = str(record.seq)
+    return data
+
+######################
+### Utils
+######################
+
+def date_converter(o):
+    if isinstance(o, datetime.datetime):
+        return o.__str__()
+
+def convert_to_int(item):
+    try:
+        return int(item)
+    except:
+        return item
+
+def capitalize_words(phrase):
+    return ' '.join([x.capitalize() for x in phrase.split(" ")])
+
+def extract_content(response, restype):
+    if response.status_code != 200:
+        print('error')
+        return None
+    else:
+        if restype == 'json':
+            return json.loads(response.text)
+        else:
+            return xmltodict.parse(response.text)
+
+def arr_filter(arr_data, key, value):
+    return [[item] for item in arr_data if item[key] == value]
+
+def array_to_dataframe(numbers, col_name):
+    matrix_numbers = [[number] for number in numbers]
+    np_numbers = np.array(matrix_numbers)
+    return pd.DataFrame(data=matrix_numbers, columns=[col_name])
+
+def dictionary_to_frame(dictionary, datatype):
+    transforms = []
+    for key in dictionary:
+        transform = {}
+        transform['key'] = remap_key(key)
+        transform['value'] = dictionary[key]
+        transform['Forms'] = datatype
+        transforms.append(transform)
+    return transforms
+
+######################
+### Region Manipulation
+######################
+
+def merge_regions(region_edges):
+
+    sorted_region_edges = sorted(region_edges, key=lambda edge: edge['coordinate'])  
+    edges = []
+    stack = 0
+    start = None
+
+    for sorted_region_edge in sorted_region_edges:
+        if sorted_region_edge['edge'] == 'start' and stack == 0:
+            start = sorted_region_edge['coordinate']
+            stack += 1
+        elif sorted_region_edge['edge'] == 'start' and stack > 0:
+            stack += 1
+        elif sorted_region_edge['edge'] == 'end':
+            stack -= 1
+            if stack == 0:
+                edges.append({
+                    'start': start,
+                    'end': sorted_region_edge['coordinate']
+                })
+                start = None
+    return edges
+
+def filter_rnas(regional_frequencies):
+    rnas = []
+    for region in regional_frequencies:
+        if 'rna' in region.lower():
+            for identifier in regional_frequencies[region]:
+                rnas.append(regional_frequencies[region][identifier])
+    return rnas
+
+def read_bed_file(biotype, gene_chromosome, gene_start, gene_end, file_path):
+    genecode_regions = []
+    counter = 0
+    with open(file_path) as fp:
+        lines = fp.readlines()
+        for line in lines:
+            metadata = line.strip().split("\t")
+            chromosome = metadata[0]
+
+            start = int(metadata[1])
+            end = int(metadata[2])
+
+            if start >= gene_start and end <= gene_end and chromosome == gene_chromosome:
+                genecode_regions.append({
+                    'identifier': f'{biotype}-{str(counter)}',
+                    'coordinates': [{
+                        'start': start,
+                        'end': end,
+                        'order': 0
+                    }],
+                    'type': biotype,
+                    'strand': '?',
+                    'meta': {}
+                })
+        counter += 1
+    return genecode_regions
+
+######################
+### Structural Analysis
+######################
+
+def get_structure_string(path):
+    with open(path) as f:
+        lines = f.readlines()
+        if len(lines) > 5:
+            return lines[5]
+        else:
+            return None
+
+def str_diff_percent(reference, mutant):
+    output_list = [li for li in difflib.ndiff(reference, mutant) if li[0] != ' ']
+    return min(len(output_list), len(reference)) / len(reference) * 100
+
+def count_structural_components(seq):
+    data = {}
+    cur_char = None
+    for character in seq:
+        if character != cur_char:
+            if character not in data:
+                data[character] = 0
+            data[character] += 1
+            cur_char = character
+    return data
+
+def remap_key(key):
+    if key == 'S':
+        return 'Stem'
+    elif key == 'M':
+        return 'Multiloop'
+    elif key == 'I':
+        return 'Interior Loop'
+    elif key == 'B':
+        return 'Bulges'
+    elif key == 'P':
+        return 'Pseudoknot'
+    elif key == 'H':
+        return 'Hairpin'
+    else:
+        return key
+
+
+######################
+### Data & Analysis
+######################
+
+def convert_hg19_to_hg38(chromosome, coordinate):
+    converter = get_lifter('hg19', 'hg38')
+    return converter[chromosome][coordinate][0][1]
+
+def get_coordinates(coord_str):
+    chr, coordinates = coord_str.split(":")
+    start, end = coordinates.split("-")
+    return chr, start, end
+
+def calculate_positions(dna, dna_subset):
+    subset_length = len(dna_subset)
+    start = dna.index(dna_subset) + 1
+    end = start + subset_length - 1
+    return start, end
+
+def bin_averages(data):
+    bins = np.array([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
+    print(np.histogram(data, bins))
+
+
+def calculate_random_chance_statistics(regions):
+    total_number_of_variants = 0
+    regional_length = 0
+    affected_regional_length = 0
+
+    for region in regions:
+        for coordinate in coordinates:
+            rna_start = coordinate['start']
+            rna_end = coordinate['end']
+            rna_length = rna_end - rna_start + 1
+            regional_length += rna_length
+
+        variants = rna_region['variants']
+        number_of_variants = len(variants)
+        if number_of_variants > 0:
+            total_number_of_variants += number_of_variants
+            affected_regional_length += rna_length
+
+    expected_variants_in_region = total_number_of_variants / regional_length
+    expected_variants_in_affected_regions = total_number_of_variants / affected_regional_length
+
+    return expected_variants_in_region, expected_variants_in_affected_regions
+
+def compute_structural_statistics(paths):
+    reference_components = []
+    mutant_components = []
+    averages = []
+    for key in paths:
+        if ':' not in key:
+            reference_path = key
+            reference_string = get_structure_string(paths[key]['st_file'])
+            print(reference_string)
+            reference_components += dictionary_to_frame(count_structural_components(reference_string), 'Consensus')
+            for mutant_path in paths[key]['sub_paths']:
+                print(mutant_path)
+                mutant_string = get_structure_string(mutant_path['st_file'])
+                mutant_components += dictionary_to_frame(count_structural_components(mutant_string), 'Mutations')
+                averages.append(str_diff_percent(reference_string, mutant_string))
+    pandas_structure_components = pd.DataFrame(reference_components + mutant_components)
+    return averages, pandas_structure_components
+
+######################
+### Cacheing
+######################
 
 def sync_databases(working_directory, file_name, url, unzip):
     if path.exists(f'./{working_directory}/{file_name}') == False:
@@ -64,10 +298,6 @@ def sync_databases(working_directory, file_name, url, unzip):
             filename = decompress_gz_file(local_filepath)
         return filename
 
-def date_converter(o):
-    if isinstance(o, datetime.datetime):
-        return o.__str__()
-
 def db_cache(file_name, callback, callback_params):
     if path.exists(file_name):
         with open(file_name) as json_file:
@@ -80,23 +310,9 @@ def db_cache(file_name, callback, callback_params):
             outfile.write(json_str)
         return data
 
-def load_fasta_file(params):
-    fasta_path = params[0]
-    data = {}
-    records = SeqIO.parse(fasta_path, "fasta")
-    for record in records:
-        identifier = record.id.split("|")[0]
-        data[identifier] = str(record.seq)
-    return data
-
-def convert_to_int(item):
-    try:
-        return int(item)
-    except:
-        return item
-
-def capitalize_words(phrase):
-    return ' '.join([x.capitalize() for x in phrase.split(" ")])
+######################
+### Plotting
+######################
 
 def plot_bar_chart(frequencies_dict, xlabel, ylabel, title, filename, order_key, rotate):
 
@@ -128,22 +344,328 @@ def plot_bar_chart(frequencies_dict, xlabel, ylabel, title, filename, order_key,
         sns_plot.set_xticklabels(sorted_labels, fontsize=10, rotation=30)
     else:
         sns_plot.set_xticklabels(sorted_labels, fontsize=10)
-    #sns_plot.set(rc={'figure.figsize':(11.7, 8.27)})
     sns_plot.get_figure().savefig(filename)
 
-def convert_hg19_to_hg38(chromosome, coordinate):
-    converter = get_lifter('hg19', 'hg38')
-    return converter[chromosome][coordinate][0][1]
 
-def extract_content(response, restype):
-    if response.status_code != 200:
-        print('error')
-        return None
+def plot_histogram(data, xname, xlabel, ylabel, title, fname):
+    sns.set_theme(style="ticks", palette="pastel")
+    sns_plot = sns.histplot(data=data, x=xname, bins=10)
+    sns_plot.set(xlabel=xlabel, ylabel=ylabel, title=title)
+    sns_plot.get_figure().savefig(fname)
+
+
+    def within_range(coordinates, variant_start, variant_end):
+    for coordinate in coordinates:
+        after_start = coordinate['start'] <= variant_start and coordinate['end'] >= variant_start
+        before_end = coordinate['start'] <= variant_end and coordinate['end'] >= variant_end
+        if after_start and before_end:
+            return True
+    return False
+
+######################
+### Variant Region Association Algorithms
+######################
+
+def count_overlapping_variant_frequencies(regions, variants):
+    overlap_variant_regions = {}
+    unique_overlap_variant_regions = {}
+    for variant in variants:
+        regions_tracker = []
+        for region in regions:
+            within = within_range(region['coordinates'], variant['start'], variant['stop'])
+            if within:
+                regions_tracker.append(region['type'])
+        if str(len(regions_tracker)) not in overlap_variant_regions:
+            overlap_variant_regions[str(len(regions_tracker))] = 0
+        overlap_variant_regions[str(len(regions_tracker))] += 1
+
+        unique_variant_regions = get_unique_items(regions_tracker)
+        if str(len(unique_variant_regions)) not in unique_overlap_variant_regions:
+            unique_overlap_variant_regions[str(len(unique_variant_regions))] = 0
+        unique_overlap_variant_regions[str(len(unique_variant_regions))] += 1
+
+    return overlap_variant_regions, unique_overlap_variant_regions
+
+def count_emperical_regional_variant_frequencies(regions, variants):
+    regional_frequencies = {}            
+    region_type_lengths = {}
+
+    for region in regions:
+        if region['type'] not in regional_frequencies:
+            regional_frequencies[region['type']] = {}
+        if region['identifier'] not in regional_frequencies[region['type']]:
+            regional_frequencies[region['type']][region['identifier']] = {
+                'region': region,
+                'variants': []
+            }
+        if region['type'] not in region_type_lengths:
+            region_type_lengths[region['type']] = []
+        for coordinate in region['coordinates']:
+            region_type_lengths[region['type']].append({
+                'edge': 'start',
+                'coordinate': coordinate['start']
+            })
+            
+            region_type_lengths[region['type']].append({
+                'edge': 'end',
+                'coordinate': coordinate['end']
+            })
+        
+        for variant in variants:
+            within = within_range(region['coordinates'], variant['start'], variant['stop'])
+            if within:
+                regional_frequencies[region['type']][region['identifier']]['variants'].append(variant)
+
+    return regional_frequencies, region_type_lengths
+
+def count_statistical_regional_variant_frequencies(regions, variants):
+    variant_regions = {}
+    for variant in variants:
+        regions_impacted = []
+        counter = 0
+        for region in regions:
+            if region['type'] not in variant_regions:
+                variant_regions[region['type']] = 0
+
+
+            region_type = region['type']
+            within = within_range(region['coordinates'], variant['start'], variant['stop'])
+            if within and (region_type not in regions_impacted):
+                    regions_impacted.append(region_type)  
+        num_regions_impacted = len(regions_impacted)
+        if num_regions_impacted > 0:
+            frequency_score = 1 / num_regions_impacted
+            for region in regions_impacted:
+                variant_regions[region] += frequency_score
+    
+    return variant_regions
+
+
+
+######################
+### RNA Structures
+######################
+
+
+def dna_to_rna(dna):
+    return dna.replace("T", "U")
+
+def generate_rna_structure(identifier, directory, rna_type, rna):
+
+    make_directory(directory)
+    tmp_path = secrets.token_hex(nbytes=16)
+    structure_path = f'{directory}/{tmp_path}'
+    make_directory(structure_path)
+
+    fasta_name = f'{structure_path}/{identifier}.fasta'
+    sequence_data = {
+        'id': identifier,
+        'seq': rna
+    }
+
+    with open(fasta_name, 'w') as writer:
+        writer.write(f'>{identifier}\n')
+        writer.write(f'{rna}\n')
+
+    is_circular = " -c " if rna_type == "circularRNA" else ""
+
+    dbn_file = f'{structure_path}/{identifier}.dbn'
+    st_file = dbn_file.replace(".dbn", ".st")
+    os.system(f'cd {structure_path} && RNAfold {is_circular} {identifier}.fasta > {identifier}.dbn')
+
+    with open(dbn_file, 'r') as reader:
+        lines = reader.readlines()
+        if len(lines) > 2:
+            lines[2] = lines[2].split(" ")[0]
+            with open(dbn_file, 'w') as writer:
+                writer.write(''.join(lines))
+
+    os.system(f'cp bpRNA.pl {structure_path}')
+    os.system(f'cd {structure_path} && cpanm Graph && perl bpRNA.pl {identifier}.dbn && rm bpRNA.pl')
+    ghost_script = f'-r600 -g8112x7596'
+    os.system(f'cd {structure_path} && gs -dSAFER -dBATCH -dNOPAUSE -sDEVICE=png16m {ghost_script} -sOutputFile={identifier}.png *.ps')
+    return structure_path
+
+
+def mutate_dna(start, end, mutation, dna):
+    if (end == start):
+        return dna[0:start-1] + mutation + dna[end:]
     else:
-        if restype == 'json':
-            return json.loads(response.text)
-        else:
-            return xmltodict.parse(response.text)
+        return dna[0:start-1] + mutation + dna[end+1:]
+
+
+def get_unique_items(items):
+    unique_items = []
+    for item in items:
+        if item not in unique_items:
+            unique_items.append(item)
+    return unique_items
+
+
+
+
+def generate_structural_variants(chromosome, rna_regions):
+    rna_directory = 'rna_struct'
+    struct_paths = {}
+    for rna_region in rna_regions:
+        #print(rna_region['region'])
+        rna_identifier = rna_region['region']['identifier'].replace("/", "").replace("\\", "").replace("@", "").replace("+", "").replace(",", "").replace("-", "")
+        rna_type = rna_region['region']['type']
+
+        print('=================')
+        print(rna_identifier)
+        print(len(rna_region['variants']))
+        dna = ''
+
+        for coordinate in rna_region['region']['coordinates']:
+            rna_start = coordinate['start']
+            rna_end = coordinate['end']
+            dna += get_sequence_from_ensembl(chromosome, rna_start + 1, rna_end)
+        print('main dna')
+        print(dna)
+        rna = dna_to_rna(dna)
+        print('normal length: ' + str(len(rna)))
+
+        unmutated_rna_path = generate_rna_structure(rna_identifier, rna_directory, rna_type, rna)
+        struct_paths[unmutated_rna_path] = {
+            'id': rna_identifier,
+            'length': len(dna)
+        }
+        struct_paths[unmutated_rna_path]['sub_paths'] = []
+        for variant in rna_region['variants']:
+            variant_dna = ''
+            for coordinate in rna_region['region']['coordinates']:
+                dna_segment = get_sequence_from_ensembl(chromosome, coordinate['start'] + 1, coordinate['end'])
+                print(dna_segment)
+                after_start = coordinate['start'] <= variant['start'] and coordinate['end'] >= variant['start']
+                before_end = coordinate['start'] <= variant['stop'] and coordinate['end'] >= variant['stop']
+                if after_start and before_end:
+                    # need to adjust start/end points to zero pos
+                    adjusted_start = variant['start'] - coordinate['start']
+                    adjusted_end = variant['stop'] - coordinate['start']
+                    print(variant['start'], variant['stop'])
+                    print(adjusted_start, adjusted_end)
+                    variant_dna += mutate_dna(adjusted_start, adjusted_end, variant['alternate_allele'], dna_segment)
+                else:
+                    variant_dna += dna_segment
+            mutated_rna = dna_to_rna(variant_dna)
+            print('stuff')
+            print(variant['reference_allele'])
+            print(variant['alternate_allele'])
+            print('mut rna length')
+            print(len(mutated_rna))
+            print(mutated_rna)
+            mutated_rna_path = generate_rna_structure(rna_identifier, rna_directory, rna_type, mutated_rna)
+            struct_paths[unmutated_rna_path]['sub_paths'].append(mutated_rna_path)
+    with open('structural_paths.json', 'w') as outfile:
+        json.dump(struct_paths, outfile)
+
+
+######################
+### Data extraction
+######################
+
+def longest_common_string(str_x: str, str_y: str, m: int, n: int):
+    lcs_data = [[0 for i in range(n + 1)]
+                 for j in range(m + 1)]
+ 
+    length = 0
+    row, col = 0, 0
+ 
+    for i in range(m + 1):
+        for j in range(n + 1):
+            if i == 0 or j == 0:
+                lcs_data[i][j] = 0
+            elif str_x[i - 1] == str_y[j - 1]:
+                lcs_data[i][j] = lcs_data[i - 1][j - 1] + 1
+                if length < lcs_data[i][j]:
+                    length = lcs_data[i][j]
+                    row = i
+                    col = j
+            else:
+                lcs_data[i][j] = 0
+ 
+    if length == 0:
+        print("No Common Substring")
+        return None
+ 
+    result_str = ['0'] * length
+ 
+    while lcs_data[row][col] != 0:
+        length -= 1
+        result_str[length] = str_x[row - 1]
+ 
+        row -= 1
+        col -= 1
+ 
+    return ''.join(result_str)
+ 
+
+def order_search(coordinates, index):
+    for i in range(len(coordinates)):
+        if int(coordinates[i]['order']) == int(index):
+            return coordinates[i]
+    return None
+
+def remap(real_rna, coordinates):
+    remapped_coordinates = []
+    orders = real_rna[1:-1].split("||")
+
+    for counter in range(len(coordinates)):
+        order = orders[counter]
+        coordinate = order_search(coordinates, order)
+        new_coordinate = copy.deepcopy(coordinate)
+        new_coordinate['order'] = counter
+        remapped_coordinates.append(new_coordinate)
+
+    return remapped_coordinates
+
+def locate_circular_rna_subcoordinates(circular_rna, chromosome, circ_rna_sequences):
+
+    actual_count = 0
+    impacted_length = 0
+
+    coordinates = []
+
+    identifier = circular_rna['identifier']
+    rna_start = circular_rna['meta']['region_start']
+    rna_end = circular_rna['meta']['region_end']
+
+    if circular_rna['meta']['gen_length'] == circular_rna['meta']['spliced_seq_length']:
+        circular_rna['coordinates'] = [{
+            'start': rna_start,
+            'end': rna_end,
+            'order': 0
+        }]
+    else:
+        dna_string = get_sequence_from_ensembl(chromosome, rna_start + 1, rna_end)
+        real_rna = circ_rna_sequences[identifier]
+        real_rna_two = real_rna
+
+        processing = True
+        counter = 0
+        while processing:
+            sub_string = longest_common_string(dna_string, real_rna, len(dna_string), len(real_rna))
+            if sub_string == None:
+                processing = False
+            else:
+                start, end = calculate_positions(dna_string, sub_string)
+                coordinates.append({
+                    'start': rna_start + start - 1,
+                    'end': rna_start + end - 1,
+                    'order': counter
+                })
+                real_rna = real_rna.replace(sub_string, f'|{counter}|')
+            counter += 1
+        remapped_coordinates = remap(real_rna, coordinates)
+        print(remapped_coordinates)
+        circular_rna['coordinates'] = remapped_coordinates
+
+    return circular_rna
+
+######################
+### Data extraction
+######################
 
 def is_gwas_snp_associated(snpid, condition):
     study_url = f'https://www.ebi.ac.uk/gwas/rest/api/singleNucleotidePolymorphisms/{snpid}/studies'
@@ -403,10 +925,6 @@ def extract_circular_rnas(params):
             counter = counter + 1
     return circular_rnas
 
-def get_coordinates(coord_str):
-    chr, coordinates = coord_str.split(":")
-    start, end = coordinates.split("-")
-    return chr, start, end
 
 def extract_enhancers(working_directory, file_path, gene_identifier, chromosome):
     enhancers = {}
@@ -656,25 +1174,6 @@ def filter_nc_rnas(chromosome, nc_rnas):
 
     return nc_rnas_list
 
-def write_regions_to_bed(gene_name, chromosome, regions):
-    entries = []
-    for region in regions:
-        region_type = region['type']
-        region_start = region['start']
-        region_end = region['end']
-        region_id = region['identifier']
-        region_strand = region['strand']
-        entry = f'{chromosome}\t{region_start}\t{region_end}\t{region_id}\t0\t{region_strand}'
-        entries.append(entry)
-
-    bed_contents = '\n'.join(entries)
-
-    file_name = f"{gene_name}_regions.bed"
-    file1 = open(file_name,"w")
-    file1.write(bed_contents) 
-    file1.close()
-    return file_name
-
 def get_sequence_from_ensembl(chromosome, start, end):
     server = "https://rest.ensembl.org"
     ext = f"/sequence/region/human/{chromosome}:{start}..{end}:1?coord_system_version=GRCh38"
@@ -683,534 +1182,6 @@ def get_sequence_from_ensembl(chromosome, start, end):
 
     dna = r.text
     return ''.join(dna.split("\n")[1:])
-
-def dna_to_rna(dna):
-    return dna.replace("T", "U")
-
-def generate_rna_structure(identifier, directory, rna_type, rna):
-
-    make_directory(directory)
-    tmp_path = secrets.token_hex(nbytes=16)
-    structure_path = f'{directory}/{tmp_path}'
-    make_directory(structure_path)
-
-    fasta_name = f'{structure_path}/{identifier}.fasta'
-    sequence_data = {
-        'id': identifier,
-        'seq': rna
-    }
-
-    with open(fasta_name, 'w') as writer:
-        writer.write(f'>{identifier}\n')
-        writer.write(f'{rna}\n')
-
-    is_circular = " -c " if rna_type == "circularRNA" else ""
-
-    dbn_file = f'{structure_path}/{identifier}.dbn'
-    st_file = dbn_file.replace(".dbn", ".st")
-    os.system(f'cd {structure_path} && RNAfold {is_circular} {identifier}.fasta > {identifier}.dbn')
-
-    with open(dbn_file, 'r') as reader:
-        lines = reader.readlines()
-        if len(lines) > 2:
-            lines[2] = lines[2].split(" ")[0]
-            with open(dbn_file, 'w') as writer:
-                writer.write(''.join(lines))
-
-    os.system(f'cp bpRNA.pl {structure_path}')
-    os.system(f'cd {structure_path} && cpanm Graph && perl bpRNA.pl {identifier}.dbn && rm bpRNA.pl')
-    ghost_script = f'-r600 -g8112x7596'
-    os.system(f'cd {structure_path} && gs -dSAFER -dBATCH -dNOPAUSE -sDEVICE=png16m {ghost_script} -sOutputFile={identifier}.png *.ps')
-    return structure_path
-
-def calculate_random_chance_statistics(regions):
-    total_number_of_variants = 0
-    regional_length = 0
-    affected_regional_length = 0
-
-    for region in regions:
-        for coordinate in coordinates:
-            rna_start = coordinate['start']
-            rna_end = coordinate['end']
-            rna_length = rna_end - rna_start + 1
-            regional_length += rna_length
-
-        variants = rna_region['variants']
-        number_of_variants = len(variants)
-        if number_of_variants > 0:
-            total_number_of_variants += number_of_variants
-            affected_regional_length += rna_length
-
-    expected_variants_in_region = total_number_of_variants / regional_length
-    expected_variants_in_affected_regions = total_number_of_variants / affected_regional_length
-
-    return expected_variants_in_region, expected_variants_in_affected_regions
-
-def mutate_dna(start, end, mutation, dna):
-    if (end == start):
-        return dna[0:start-1] + mutation + dna[end:]
-    else:
-        return dna[0:start-1] + mutation + dna[end+1:]
-
-
-def get_unique_items(items):
-    unique_items = []
-    for item in items:
-        if item not in unique_items:
-            unique_items.append(item)
-    return unique_items
-
-
-def LCSSubStr(X: str, Y: str,
-                   m: int, n: int):
-    # Create a table to store lengths of
-    # longest common suffixes of substrings.
-    # Note that LCSuff[i][j] contains length
-    # of longest common suffix of X[0..i-1] and
-    # Y[0..j-1]. The first row and first
-    # column entries have no logical meaning,
-    # they are used only for simplicity of program
-    LCSuff = [[0 for i in range(n + 1)]
-                 for j in range(m + 1)]
- 
-    # To store length of the
-    # longest common substring
-    length = 0
- 
-    # To store the index of the cell
-    # which contains the maximum value.
-    # This cell's index helps in building
-    # up the longest common substring
-    # from right to left.
-    row, col = 0, 0
- 
-    # Following steps build LCSuff[m+1][n+1]
-    # in bottom up fashion.
-    for i in range(m + 1):
-        for j in range(n + 1):
-            if i == 0 or j == 0:
-                LCSuff[i][j] = 0
-            elif X[i - 1] == Y[j - 1]:
-                LCSuff[i][j] = LCSuff[i - 1][j - 1] + 1
-                if length < LCSuff[i][j]:
-                    length = LCSuff[i][j]
-                    row = i
-                    col = j
-            else:
-                LCSuff[i][j] = 0
- 
-    # if true, then no common substring exists
-    if length == 0:
-        print("No Common Substring")
-        return
- 
-    # allocate space for the longest
-    # common substring
-    resultStr = ['0'] * length
- 
-    # traverse up diagonally form the
-    # (row, col) cell until LCSuff[row][col] != 0
-    while LCSuff[row][col] != 0:
-        length -= 1
-        resultStr[length] = X[row - 1] # or Y[col-1]
- 
-        # move diagonally up to previous cell
-        row -= 1
-        col -= 1
- 
-    # required longest common substring
-    return ''.join(resultStr)
- 
-def calculate_positions(dna, dna_subset):
-    subset_length = len(dna_subset)
-    start = dna.index(dna_subset) + 1
-    end = start + subset_length - 1
-    return start, end
-
-def order_search(coordinates, index):
-    for i in range(len(coordinates)):
-        if int(coordinates[i]['order']) == int(index):
-            return coordinates[i]
-    return None
-
-def remap(real_rna, coordinates):
-    remapped_coordinates = []
-    orders = real_rna[1:-1].split("||")
-
-    for counter in range(len(coordinates)):
-        order = orders[counter]
-        coordinate = order_search(coordinates, order)
-        new_coordinate = copy.deepcopy(coordinate)
-        new_coordinate['order'] = counter
-        remapped_coordinates.append(new_coordinate)
-
-    return remapped_coordinates
-
-def locate_circular_rna_subcoordinates(circular_rna, chromosome, circ_rna_sequences):
-
-    actual_count = 0
-    impacted_length = 0
-
-    coordinates = []
-
-    identifier = circular_rna['identifier']
-    rna_start = circular_rna['meta']['region_start']
-    rna_end = circular_rna['meta']['region_end']
-
-    if circular_rna['meta']['gen_length'] == circular_rna['meta']['spliced_seq_length']:
-        circular_rna['coordinates'] = [{
-            'start': rna_start,
-            'end': rna_end,
-            'order': 0
-        }]
-    else:
-        dna_string = get_sequence_from_ensembl(chromosome, rna_start + 1, rna_end)
-        #print(dna_string)
-        #print(rna_start, rna_end)
-        real_rna = circ_rna_sequences[identifier]
-        real_rna_two = real_rna
-
-        processing = True
-        counter = 0
-        while processing:
-            sub_string = LCSSubStr(dna_string, real_rna, len(dna_string), len(real_rna))
-            if sub_string == None:
-                processing = False
-            else:
-                start, end = calculate_positions(dna_string, sub_string)
-                coordinates.append({
-                    'start': rna_start + start - 1,
-                    'end': rna_start + end - 1,
-                    'order': counter
-                })
-                real_rna = real_rna.replace(sub_string, f'|{counter}|')
-            counter += 1
-        remapped_coordinates = remap(real_rna, coordinates)
-        print(remapped_coordinates)
-        circular_rna['coordinates'] = remapped_coordinates
-
-    return circular_rna
-
-def generate_structural_variants(chromosome, rna_regions):
-    rna_directory = 'rna_struct'
-    struct_paths = {}
-    for rna_region in rna_regions:
-        #print(rna_region['region'])
-        rna_identifier = rna_region['region']['identifier'].replace("/", "").replace("\\", "").replace("@", "").replace("+", "").replace(",", "").replace("-", "")
-        rna_type = rna_region['region']['type']
-
-        print('=================')
-        print(rna_identifier)
-        print(len(rna_region['variants']))
-        dna = ''
-
-        for coordinate in rna_region['region']['coordinates']:
-            rna_start = coordinate['start']
-            rna_end = coordinate['end']
-            dna += get_sequence_from_ensembl(chromosome, rna_start + 1, rna_end)
-        print('main dna')
-        print(dna)
-        rna = dna_to_rna(dna)
-        print('normal length: ' + str(len(rna)))
-
-        unmutated_rna_path = generate_rna_structure(rna_identifier, rna_directory, rna_type, rna)
-        struct_paths[unmutated_rna_path] = {
-            'id': rna_identifier,
-            'length': len(dna)
-        }
-        struct_paths[unmutated_rna_path]['sub_paths'] = []
-        for variant in rna_region['variants']:
-            variant_dna = ''
-            for coordinate in rna_region['region']['coordinates']:
-                dna_segment = get_sequence_from_ensembl(chromosome, coordinate['start'] + 1, coordinate['end'])
-                print(dna_segment)
-                after_start = coordinate['start'] <= variant['start'] and coordinate['end'] >= variant['start']
-                before_end = coordinate['start'] <= variant['stop'] and coordinate['end'] >= variant['stop']
-                if after_start and before_end:
-                    # need to adjust start/end points to zero pos
-                    adjusted_start = variant['start'] - coordinate['start']
-                    adjusted_end = variant['stop'] - coordinate['start']
-                    print(variant['start'], variant['stop'])
-                    print(adjusted_start, adjusted_end)
-                    variant_dna += mutate_dna(adjusted_start, adjusted_end, variant['alternate_allele'], dna_segment)
-                else:
-                    variant_dna += dna_segment
-            mutated_rna = dna_to_rna(variant_dna)
-            print('stuff')
-            print(variant['reference_allele'])
-            print(variant['alternate_allele'])
-            print('mut rna length')
-            print(len(mutated_rna))
-            print(mutated_rna)
-            mutated_rna_path = generate_rna_structure(rna_identifier, rna_directory, rna_type, mutated_rna)
-            struct_paths[unmutated_rna_path]['sub_paths'].append(mutated_rna_path)
-    with open('structural_paths.json', 'w') as outfile:
-        json.dump(struct_paths, outfile)
-
-def within_range(coordinates, variant_start, variant_end):
-    for coordinate in coordinates:
-        after_start = coordinate['start'] <= variant_start and coordinate['end'] >= variant_start
-        before_end = coordinate['start'] <= variant_end and coordinate['end'] >= variant_end
-        if after_start and before_end:
-            return True
-    return False
-
-def count_overlapping_variant_frequencies(regions, variants):
-    overlap_variant_regions = {}
-    unique_overlap_variant_regions = {}
-    for variant in variants:
-        regions_tracker = []
-        for region in regions:
-            within = within_range(region['coordinates'], variant['start'], variant['stop'])
-            if within:
-                regions_tracker.append(region['type'])
-        if str(len(regions_tracker)) not in overlap_variant_regions:
-            overlap_variant_regions[str(len(regions_tracker))] = 0
-        overlap_variant_regions[str(len(regions_tracker))] += 1
-
-        unique_variant_regions = get_unique_items(regions_tracker)
-        if str(len(unique_variant_regions)) not in unique_overlap_variant_regions:
-            unique_overlap_variant_regions[str(len(unique_variant_regions))] = 0
-        unique_overlap_variant_regions[str(len(unique_variant_regions))] += 1
-
-    return overlap_variant_regions, unique_overlap_variant_regions
-
-def count_emperical_regional_variant_frequencies(regions, variants):
-    regional_frequencies = {}            
-    region_type_lengths = {}
-
-    for region in regions:
-        if region['type'] not in regional_frequencies:
-            regional_frequencies[region['type']] = {}
-        if region['identifier'] not in regional_frequencies[region['type']]:
-            regional_frequencies[region['type']][region['identifier']] = {
-                'region': region,
-                'variants': []
-            }
-        if region['type'] not in region_type_lengths:
-            region_type_lengths[region['type']] = []
-        for coordinate in region['coordinates']:
-            region_type_lengths[region['type']].append({
-                'edge': 'start',
-                'coordinate': coordinate['start']
-            })
-            
-            region_type_lengths[region['type']].append({
-                'edge': 'end',
-                'coordinate': coordinate['end']
-            })
-        
-        for variant in variants:
-            within = within_range(region['coordinates'], variant['start'], variant['stop'])
-            if within:
-                regional_frequencies[region['type']][region['identifier']]['variants'].append(variant)
-
-    return regional_frequencies, region_type_lengths
-
-def count_statistical_regional_variant_frequencies(regions, variants):
-    variant_regions = {}
-    for variant in variants:
-        regions_impacted = []
-        counter = 0
-        for region in regions:
-            if region['type'] not in variant_regions:
-                variant_regions[region['type']] = 0
-
-
-            region_type = region['type']
-            within = within_range(region['coordinates'], variant['start'], variant['stop'])
-            if within and (region_type not in regions_impacted):
-                    regions_impacted.append(region_type)  
-        num_regions_impacted = len(regions_impacted)
-        if num_regions_impacted > 0:
-            frequency_score = 1 / num_regions_impacted
-            for region in regions_impacted:
-                variant_regions[region] += frequency_score
-    
-    return variant_regions
-
-def double_bar_chart(regional_frequencies, expected_regional_frequencies):
-
-    regional_frequency_values = list(regional_frequencies.values())
-    N = len(regional_frequency_values)
-    ind = np.arange(N)
-    width = 0.27
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-
-    yvals =  regional_frequency_values
-    rects1 = ax.bar(ind, yvals, width, color='#a291e1')
-    zvals = list(expected_regional_frequencies.values())
-    rects2 = ax.bar(ind+width, zvals, width, color='#56ad74')
-
-    ax.set_ylabel('Scores')
-    ax.set_xticks(ind+width)
-    ax.set_xticklabels( list(regional_frequencies.keys()) )
-    ax.legend( (rects1[0], rects2[0]), ('Actual distribution', 'Expected distribution') )
-
-    def autolabel(rects):
-        for rect in rects:
-            h = rect.get_height()
-            ax.text(rect.get_x()+rect.get_width()/2., 1.05*h, '%d'%int(h),
-                    ha='center', va='bottom')
-
-    autolabel(rects1)
-    autolabel(rects2)
-
-    plt.xticks(rotation = 45)
-    
-    plt.savefig('expected_actual_distribution.png', dpi=100)
-
-
-def read_bed_file(biotype, gene_chromosome, gene_start, gene_end, file_path):
-    genecode_regions = []
-    counter = 0
-    with open(file_path) as fp:
-        lines = fp.readlines()
-        for line in lines:
-            metadata = line.strip().split("\t")
-            chromosome = metadata[0]
-
-            start = int(metadata[1])
-            end = int(metadata[2])
-            #gene_name = metadata[3]
-            #strand = metadata[5]
-
-            if start >= gene_start and end <= gene_end and chromosome == gene_chromosome:
-                genecode_regions.append({
-                    'identifier': f'{biotype}-{str(counter)}',
-                    'coordinates': [{
-                        'start': start,
-                        'end': end,
-                        'order': 0
-                    }],
-                    'type': biotype,
-                    'strand': '?',
-                    'meta': {}
-                })
-        counter += 1
-    return genecode_regions
-
-def bed_to_indexed_bam(bed_file_name):
-    os.system(f'perl bed2sam.pl {bed_file_name}')
-    os.system(f'rm {bed_file_name}')
-    file_name = bed_file_name.replace(".bed", "")
-    os.system(f'samtools view -S -b {file_name}.sam > {file_name}.bam')
-    os.system(f'rm {file_name}.sam')
-    os.system(f'samtools index {file_name}.bam')
-
-def merge_regions(region_edges):
-
-    sorted_region_edges = sorted(region_edges, key=lambda edge: edge['coordinate'])  
-    edges = []
-    stack = 0
-    start = None
-
-    for sorted_region_edge in sorted_region_edges:
-        if sorted_region_edge['edge'] == 'start' and stack == 0:
-            start = sorted_region_edge['coordinate']
-            stack += 1
-        elif sorted_region_edge['edge'] == 'start' and stack > 0:
-            stack += 1
-        elif sorted_region_edge['edge'] == 'end':
-            stack -= 1
-            if stack == 0:
-                edges.append({
-                    'start': start,
-                    'end': sorted_region_edge['coordinate']
-                })
-                start = None
-    return edges
-
-def get_structure_string(path):
-    with open(path) as f:
-        lines = f.readlines()
-        if len(lines) > 5:
-            return lines[5]
-        else:
-            return None
-
-def str_diff_percent(reference, mutant):
-    output_list = [li for li in difflib.ndiff(reference, mutant) if li[0] != ' ']
-    return min(len(output_list), len(reference)) / len(reference) * 100
-
-def count_structural_components(seq):
-    data = {}
-    cur_char = None
-    for character in seq:
-        if character != cur_char:
-            if character not in data:
-                data[character] = 0
-            data[character] += 1
-            cur_char = character
-    return data
-
-def remap_key(key):
-    if key == 'S':
-        return 'Stem'
-    elif key == 'M':
-        return 'Multiloop'
-    elif key == 'I':
-        return 'Interior Loop'
-    elif key == 'B':
-        return 'Bulges'
-    elif key == 'P':
-        return 'Pseudoknot'
-    elif key == 'H':
-        return 'Hairpin'
-    else:
-        return key
-
-def dictionary_to_frame(dictionary, datatype):
-    transforms = []
-    for key in dictionary:
-        transform = {}
-        transform['key'] = remap_key(key)
-        transform['value'] = dictionary[key]
-        transform['Forms'] = datatype
-        transforms.append(transform)
-    return transforms
-
-def compute_structural_statistics(paths):
-    reference_components = []
-    mutant_components = []
-    averages = []
-    for key in paths:
-        if ':' not in key:
-            reference_path = key
-            reference_string = get_structure_string(paths[key]['st_file'])
-            print(reference_string)
-            reference_components += dictionary_to_frame(count_structural_components(reference_string), 'Consensus')
-            for mutant_path in paths[key]['sub_paths']:
-                print(mutant_path)
-                mutant_string = get_structure_string(mutant_path['st_file'])
-                mutant_components += dictionary_to_frame(count_structural_components(mutant_string), 'Mutations')
-                averages.append(str_diff_percent(reference_string, mutant_string))
-    pandas_structure_components = pd.DataFrame(reference_components + mutant_components)
-    return averages, pandas_structure_components
-
-def filter_rnas(regional_frequencies):
-    rnas = []
-    for region in regional_frequencies:
-        if 'rna' in region.lower():
-            for identifier in regional_frequencies[region]:
-                rnas.append(regional_frequencies[region][identifier])
-    return rnas
-
-def arr_filter(arr_data, key, value):
-    return [[item] for item in arr_data if item[key] == value]
-
-def array_to_dataframe(numbers, col_name):
-    matrix_numbers = [[number] for number in numbers]
-    np_numbers = np.array(matrix_numbers)
-    return pd.DataFrame(data=matrix_numbers, columns=[col_name])
-
-def plot_histogram(data, xname, xlabel, ylabel, title, fname):
-    sns.set_theme(style="ticks", palette="pastel")
-    sns_plot = sns.histplot(data=data, x=xname, bins=10)
-    sns_plot.set(xlabel=xlabel, ylabel=ylabel, title=title)
-    sns_plot.get_figure().savefig(fname)
 
 
 def main():
@@ -1241,7 +1212,6 @@ def main():
 
     sync_databases(working_directory, 'insulators-experimental.hg19.txt', 'https://insulatordb.uthsc.edu/download/CTCFBSDB1.0/allexp.txt.gz', True)
     sync_databases(working_directory, 'circbase_sequences.fasta', 'http://www.circbase.org/download/human_hg19_circRNAs_putative_spliced_sequence.fa.gz', True)
-    #sync_databases(working_directory, 'insulators-computational.hg19.txt', 'https://insulatordb.uthsc.edu/download/allcomp.txt.gz', True)
 
     db_stats = {}
 
@@ -1256,15 +1226,8 @@ def main():
 
     db_stats['clinvar'] = len(ncbi_clinical_variants)
 
-    #print(len(variants))
-    #for variant in variants:
-    #    print(variant)
     regions = []
     rnas = []
-
-
-    #computational_insulators = extract_insulators(f'./{working_directory}/insulators-computational.hg19.txt', gene_name, chromosome)
-    #regions += dedup_regions(computational_insulators)
 
     experimental_insulators = extract_insulators(f'./{working_directory}/insulators-experimental.hg19.txt', gene_name, chromosome)
     regions += experimental_insulators
@@ -1286,7 +1249,6 @@ def main():
     db_stats['utr3'] = len(enhancers)
     db_stats['utr5'] = len(enhancers)
 
-    #exons = read_bed_file('exon', chromosome, gene_start, gene_end, exon_bed_path)
     introns = read_bed_file('intron', chromosome, gene_start, gene_end, intron_bed_path)
     regions += introns
 
@@ -1330,9 +1292,6 @@ def main():
 
     generate_structural_variants(chromosome, filtered_rnas)
 
-    #bed_file_name = write_regions_to_bed(gene_name, chromosome, regions)
-    #bed_to_indexed_bam(bed_file_name)
-
     region_lengths = {}
     for region in region_type_lengths:
         region_lengths[region] = 0
@@ -1362,9 +1321,6 @@ def main():
     plot_bar_chart(regional_frequency_counts, 'Regions', 'Variant Frequency', 'Frequency of Variants per Genomic Region', 'variant_frequencies.png', '', True)
     plot_bar_chart(overlap_variant_regions, 'Frequency of Overlapping Regions', 'Variant Frequency', 'Frequency of Variants in Overlapping Regions', 'unique_overlap_variants.png', '', False)
     plot_bar_chart(unique_overlap_variant_regions, 'Frequency of Unique Overlapping Regions', 'Variant Frequency', 'Frequency of Variants in Unique Overlapping Regions', 'unique_non_overlap_variants.png', '', False)
-    #double_bar_chart(variant_regions, variant_region_expected_frequencies)
-
-    #double_bar_chart(regional_frequencies, variant_region_expected_frequencies)
 
     print('dbstats')
     for stat in db_stats:
